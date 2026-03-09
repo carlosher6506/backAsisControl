@@ -32,3 +32,55 @@ exports.crearGrupo = async (req,res)=>{
     }
 
 };
+
+exports.obtenerGrupos = async (req,res)=>{
+
+    const result = await pool.query(`
+        SELECT * FROM grupos
+        ORDER BY id
+    `);
+
+    res.json(result.rows);
+};
+
+
+exports.obtenerGrupoPorId = async (req,res)=>{
+
+    const {id} = req.params;
+
+    const result = await pool.query(`
+        SELECT * FROM grupos
+        WHERE id=$1
+    `,[id]);
+
+    res.json(result.rows[0]);
+};
+
+
+exports.actualizarGrupo = async (req,res)=>{
+
+    const {id} = req.params;
+    const {nombre,maestro_id} = req.body;
+
+    const result = await pool.query(`
+        UPDATE grupos
+        SET nombre=$1,maestro_id=$2
+        WHERE id=$3
+        RETURNING *
+    `,[nombre,maestro_id,id]);
+
+    res.json(result.rows[0]);   
+};
+
+
+exports.eliminarGrupo = async (req,res)=>{
+
+    const {id} = req.params;
+
+    await pool.query(`
+        DELETE FROM grupos
+        WHERE id=$1
+    `,[id]);
+
+    res.json({message:"Grupo eliminado"});
+};

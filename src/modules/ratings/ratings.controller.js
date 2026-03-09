@@ -16,3 +16,55 @@ exports.calificar = async (req,res)=>{
     res.json(result.rows[0]);
 
 };
+
+exports.obtenerCalificaciones = async (req,res)=>{
+
+    const result = await pool.query(`
+        SELECT * FROM calificaciones
+    `);
+
+    res.json(result.rows);
+};
+
+
+exports.obtenerCalificacion = async (req,res)=>{
+
+    const {id} = req.params;
+
+    const result = await pool.query(`
+        SELECT * FROM calificaciones
+        WHERE id=$1
+    `,[id]);
+
+    res.json(result.rows[0]);
+};
+
+
+exports.eliminarCalificacion = async (req,res)=>{
+
+    const {id} = req.params;
+
+    await pool.query(`
+        DELETE FROM calificaciones
+        WHERE id=$1
+    `,[id]);
+
+    res.json({message:"Calificación eliminada"});
+};
+
+
+exports.actualizarCalificacion = async (req,res)=>{
+
+    const {id} = req.params;
+    const {calificacion} = req.body;
+
+    const result = await pool.query(`
+        UPDATE calificaciones
+        SET calificacion=$1
+        WHERE id=$2
+        RETURNING *
+    `,[calificacion,id]);
+
+    res.json(result.rows[0]);
+
+};

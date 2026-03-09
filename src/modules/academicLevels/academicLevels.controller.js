@@ -48,3 +48,48 @@ exports.obtenerNivelesAcademicos = async (req,res)=>{
     res.json(result.rows);
 
 };
+
+exports.obtenerNivelAcademicoPorId = async (req,res)=>{
+
+    const {id} = req.params;
+
+    const result = await pool.query(`
+        SELECT * FROM niveles_academicos
+        WHERE id=$1
+    `,[id]);
+
+    if(result.rows.length === 0){
+        return res.status(404).json({message:"Nivel no encontrado"});
+    }
+
+    res.json(result.rows[0]);
+};
+
+
+exports.actualizarNivelAcademico = async (req,res)=>{
+
+    const {id} = req.params;
+    const {nombre,orden} = req.body;
+
+    const result = await pool.query(`
+        UPDATE niveles_academicos
+        SET nombre=$1,orden=$2
+        WHERE id=$3
+        RETURNING *
+    `,[nombre,orden,id]);
+
+    res.json(result.rows[0]);
+};
+
+
+exports.eliminarNivelAcademico = async (req,res)=>{
+
+    const {id} = req.params;
+
+    await pool.query(`
+        DELETE FROM niveles_academicos
+        WHERE id=$1
+    `,[id]);
+
+    res.json({message:"Nivel académico eliminado"});
+};
