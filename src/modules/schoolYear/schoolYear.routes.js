@@ -9,5 +9,6 @@ router.get('/', auth,controller.obtenerCiclos);
 router.get('/:id', auth,controller.obtenerCiclo);
 router.delete('/:id',controller.eliminarCiclo);
 router.put('/:id',auth,controller.actualizarCiclo);
+router.patch('/:id/activar', auth, controller.activarCiclo);
 
 module.exports = router;

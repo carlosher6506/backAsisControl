@@ -9,5 +9,6 @@ router.get('/',auth,controller.obtenerAlumnos);
 router.get('/:id',auth,controller.obtenerAlumnoPorId);
 router.put('/:id',auth,controller.actualizarAlumno);
 router.delete('/:id',auth,controller.eliminarAlumno);
+router.get('/grupo/:grupo_id', auth, controller.obtenerAlumnosPorGrupo);
 
 module.exports = router;

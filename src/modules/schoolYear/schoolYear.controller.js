@@ -69,3 +69,21 @@ exports.actualizarCiclo = async (req,res)=>{
     res.json(result.rows[0]);
 
 };
+
+
+exports.activarCiclo = async (req, res) => {
+  const { id } = req.params;
+
+  // Desactiva todos primero
+  await pool.query(`UPDATE ciclos_escolares SET activo = false`);
+
+  // Activa solo el seleccionado
+  const result = await pool.query(`
+    UPDATE ciclos_escolares
+    SET activo = true
+    WHERE id = $1
+    RETURNING *
+  `, [id]);
+
+  res.json(result.rows[0]);
+};
