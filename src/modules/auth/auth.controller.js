@@ -53,3 +53,43 @@ exports.login = async (req, res) => {
         res.status(500).json({ message: 'Error en login' });
     }
 };
+
+exports.registro = async (req, res) => {
+  try {
+    const { nombre, email, password } = req.body;
+
+    if (!nombre || !email || !password) {
+      return res.status(400).json({ message: 'Todos los campos son requeridos' });
+    }
+
+    // Verifica si el email ya existe
+    const existe = await pool.query(
+      `SELECT id FROM usuarios WHERE email = $1`, [email]
+    );
+    if (existe.rows.length > 0) {
+      return res.status(400).json({ message: 'El correo ya está registrado' });
+    }
+
+    // Obtiene el rol de maestro
+    const rolResult = await pool.query(
+      `SELECT id FROM roles WHERE nombre = 'maestro'`
+    );
+    if (rolResult.rows.length === 0) {
+      return res.status(500).json({ message: 'Rol maestro no encontrado' });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const result = await pool.query(`
+      INSERT INTO usuarios (nombre, email, password, rol_id)
+      VALUES ($1, $2, $3, $4)
+      RETURNING id, nombre, email
+    `, [nombre, email, passwordHash, rolResult.rows[0].id]);
+
+    res.json({ message: 'Cuenta creada correctamente', usuario: result.rows[0] });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error creando cuenta' });
+  }
+};
