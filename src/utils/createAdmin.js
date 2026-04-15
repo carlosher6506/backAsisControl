@@ -1,4 +1,4 @@
-const pool = require('../config/database');
+const pool = require('../config/supabase');
 const bcrypt = require('bcrypt');
 
 const crearAdmin = async () => {
@@ -8,10 +8,9 @@ const crearAdmin = async () => {
         const admin = await pool.query(`
             SELECT u.id
             FROM usuarios u
-            JOIN roles r ON u.rol_id = r.id
-            WHERE r.nombre = 'admin'
+            WHERE u.email = $1
             LIMIT 1
-        `);
+        `, ['gohedevelop@gmail.com']);
 
         if (admin.rows.length > 0) {
             console.log('admin already exists.');
