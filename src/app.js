@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { crearUsuario } = require('./modules/users/users.controller');
-require('./config/database');
+require('dotenv').config();
 require('./utils/createAdmin')();
 
 const app = express();

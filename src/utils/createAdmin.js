@@ -1,56 +1,52 @@
-const pool = require('../config/supabase');
+const supabase = require('../config/supabase');
 const bcrypt = require('bcrypt');
 
 const crearAdmin = async () => {
-    try {
+  try {
+    // Verificar si ya existe el email directamente
+    const { data: existe } = await supabase
+      .from('usuarios')
+      .select('id')
+      .eq('email', 'gohedevelop@gmail.com')
+      .maybeSingle();
 
-        // Verificar si ya existe un usuario con rol admin
-        const admin = await pool.query(`
-            SELECT u.id
-            FROM usuarios u
-            WHERE u.email = $1
-            LIMIT 1
-        `, ['gohedevelop@gmail.com']);
-
-        if (admin.rows.length > 0) {
-            console.log('admin already exists.');
-            return;
-        }
-
-        console.log('admin not found. Creating initial admin...');
-
-        // Obtener id del rol admin
-        const rolAdmin = await pool.query(
-            `SELECT id FROM roles WHERE nombre = 'admin' LIMIT 1`
-        );
-
-        if (rolAdmin.rows.length === 0) {
-            console.error('No admin role found. Please ensure the admin role exists in the roles table.');
-            return;
-        }
-
-        const rolId = rolAdmin.rows[0].id;
-
-        // Encriptar contraseña
-        const passwordHash = await bcrypt.hash('admin123', 10);
-
-        await pool.query(`
-            INSERT INTO usuarios (nombre, email, password, rol_id, activo)
-            VALUES ($1, $2, $3, $4, true)
-        `, [
-            'Administrador',
-            'gohedevelop@gmail.com',
-            passwordHash,
-            rolId
-        ]);
-
-        console.log('Admin created successfully!');
-        console.log('mail: gohedevelop@gmail.com');
-        console.log('Password: admin123');
-
-    } catch (error) {
-        console.error(' Error to create admin:', error.message);
+    if (existe) {
+      console.log('Admin already exists.');
+      return;
     }
+
+    console.log('Admin not found. Creating initial admin...');
+
+    const { data: rolData, error: rolError } = await supabase
+      .from('roles')
+      .select('id')
+      .eq('nombre', 'admin')
+      .single();
+
+    if (rolError || !rolData) {
+      console.error('No admin role found.');
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash('admin123', 10);
+
+    const { error } = await supabase
+      .from('usuarios')
+      .insert({
+        nombre: 'Administrador',
+        email: 'gohedevelop@gmail.com',
+        password: passwordHash,
+        rol_id: rolData.id,
+        activo: true
+      });
+
+    if (error) throw error;
+
+    console.log('Admin created successfully!');
+
+  } catch (error) {
+    console.error('Error to create admin:', error.message);
+  }
 };
 
 module.exports = crearAdmin;

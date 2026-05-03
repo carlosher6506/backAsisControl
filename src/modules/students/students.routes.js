@@ -11,5 +11,6 @@ router.put('/:id',auth,controller.actualizarAlumno);
 router.delete('/:id',auth,controller.eliminarAlumno);
 router.get('/grupo/:grupo_id', auth, controller.obtenerAlumnosPorGrupo);
 router.get('/consulta/:matricula', controller.consultarPorMatricula);
+router.get('/:id/grupos', auth, controller.obtenerGruposDeAlumno);
 
 module.exports = router;

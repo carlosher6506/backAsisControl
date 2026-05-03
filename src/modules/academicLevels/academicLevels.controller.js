@@ -1,109 +1,126 @@
-const pool = require('../../config/database');
+const supabase = require('../../config/supabase');
 
 exports.crearNivelAcademico = async (req, res) => {
   try {
     const { nivel_educativo_id, nombre, orden } = req.body;
 
     // Verifica si ya existe el mismo nombre en el mismo nivel
-    const existe = await pool.query(`
-      SELECT id FROM niveles_academicos
-      WHERE nivel_educativo_id = $1
-      AND LOWER(nombre) = LOWER($2)
-    `, [nivel_educativo_id, nombre]);
+    const { data: existe } = await supabase
+      .from('niveles_academicos')
+      .select('id')
+      .eq('nivel_educativo_id', nivel_educativo_id)
+      .ilike('nombre', nombre);
 
-    if (existe.rows.length > 0) {
+    if (existe && existe.length > 0) {
       return res.status(400).json({ message: 'Ya existe ese grado/semestre en este nivel' });
     }
 
-    const result = await pool.query(`
-      INSERT INTO niveles_academicos (nivel_educativo_id, nombre, orden)
-      VALUES ($1, $2, $3)
-      RETURNING *
-    `, [nivel_educativo_id, nombre, orden]);
+    const { data, error } = await supabase
+      .from('niveles_academicos')
+      .insert({ nivel_educativo_id, nombre, orden })
+      .select()
+      .single();
 
-    res.json(result.rows[0]);
+    if (error) throw error;
+    res.json(data);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error creando nivel académico' });
   }
 };
 
+exports.obtenerNivelesAcademicos = async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('niveles_academicos')
+      .select(`
+        *,
+        niveles_educativos (nombre)
+      `)
+      .order('orden');
 
-exports.obtenerNivelesAcademicos = async (req,res)=>{
+    if (error) throw error;
 
-    const result = await pool.query(`
-        SELECT 
-        na.*,
-        ne.nombre AS nivel_educativo
-        FROM niveles_academicos na
-        JOIN niveles_educativos ne
-        ON na.nivel_educativo_id = ne.id
-        ORDER BY na.orden
-    `);
+    // Aplanar para que nivel_educativo quede como campo directo
+    const result = data.map(n => ({
+      ...n,
+      nivel_educativo: n.niveles_educativos?.nombre,
+      niveles_educativos: undefined
+    }));
 
-    res.json(result.rows);
-
+    res.json(result);
+    } catch (error) {
+      console.error('ERROR GRUPOS:', JSON.stringify(error, null, 2));
+      res.status(500).json({ message: 'Error obteniendo niveles academicos', detail: error });
+    }
 };
 
-exports.obtenerNivelAcademicoPorId = async (req,res)=>{
+exports.obtenerNivelAcademicoPorId = async (req, res) => {
+  try {
+    const { id } = req.params;
 
-    const {id} = req.params;
+    const { data, error } = await supabase
+      .from('niveles_academicos')
+      .select('*')
+      .eq('id', id)
+      .single();
 
-    const result = await pool.query(`
-        SELECT * FROM niveles_academicos
-        WHERE id=$1
-    `,[id]);
-
-    if(result.rows.length === 0){
-        return res.status(404).json({message:"Nivel no encontrado"});
+    if (error || !data) {
+      return res.status(404).json({ message: 'Nivel no encontrado' });
     }
 
-    res.json(result.rows[0]);
+    res.json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error obteniendo nivel académico' });
+  }
 };
-
 
 exports.actualizarNivelAcademico = async (req, res) => {
   try {
     const { id } = req.params;
     const { nombre, orden, nivel_educativo_id } = req.body;
 
-    // Verifica duplicado — excluye el registro actual
-    const existe = await pool.query(`
-      SELECT id FROM niveles_academicos
-      WHERE nivel_educativo_id = $1
-      AND LOWER(nombre) = LOWER($2)
-      AND id != $3
-    `, [nivel_educativo_id, nombre, id]);
+    // Verifica duplicado excluyendo el registro actual
+    const { data: existe } = await supabase
+      .from('niveles_academicos')
+      .select('id')
+      .eq('nivel_educativo_id', nivel_educativo_id)
+      .ilike('nombre', nombre)
+      .neq('id', id);
 
-    if (existe.rows.length > 0) {
+    if (existe && existe.length > 0) {
       return res.status(400).json({ message: 'Ya existe ese grado/semestre en este nivel' });
     }
 
-    const result = await pool.query(`
-      UPDATE niveles_academicos
-      SET nombre = $1,
-          orden = $2,
-          nivel_educativo_id = $3
-      WHERE id = $4
-      RETURNING *
-    `, [nombre, orden, nivel_educativo_id, id]);
+    const { data, error } = await supabase
+      .from('niveles_academicos')
+      .update({ nombre, orden, nivel_educativo_id })
+      .eq('id', id)
+      .select()
+      .single();
 
-    res.json(result.rows[0]);
+    if (error) throw error;
+    res.json(data);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error actualizando nivel académico' });
   }
 };
 
+exports.eliminarNivelAcademico = async (req, res) => {
+  try {
+    const { id } = req.params;
 
-exports.eliminarNivelAcademico = async (req,res)=>{
+    const { error } = await supabase
+      .from('niveles_academicos')
+      .delete()
+      .eq('id', id);
 
-    const {id} = req.params;
-
-    await pool.query(`
-        DELETE FROM niveles_academicos
-        WHERE id=$1
-    `,[id]);
-
-    res.json({message:"Nivel académico eliminado"});
+    if (error) throw error;
+    res.json({ message: 'Nivel académico eliminado' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error eliminando nivel académico' });
+  }
 };

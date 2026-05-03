@@ -1,66 +1,110 @@
-const pool = require('../../config/database');
+const supabase = require('../../config/supabase');
 
 exports.asignarMateria = async (req, res) => {
   try {
     const { grupo_id, materia_id, maestro_id } = req.body;
 
-    const existe = await pool.query(
-      `SELECT id FROM grupo_materias WHERE grupo_id=$1 AND materia_id=$2`,
-      [grupo_id, materia_id]
-    );
-    if (existe.rows.length > 0) {
+    const { data: existe } = await supabase
+      .from('grupo_materias')
+      .select('id')
+      .eq('grupo_id', grupo_id)
+      .eq('materia_id', materia_id);
+
+    if (existe && existe.length > 0) {
       return res.status(400).json({ message: 'Esta materia ya está asignada a este grupo' });
     }
 
-    const result = await pool.query(`
-      INSERT INTO grupo_materias (grupo_id, materia_id, maestro_id)
-      VALUES ($1, $2, $3) RETURNING *
-    `, [grupo_id, materia_id, maestro_id]);
+    const { data, error } = await supabase
+      .from('grupo_materias')
+      .insert({ grupo_id, materia_id, maestro_id })
+      .select()
+      .single();
 
-    res.json(result.rows[0]);
+    if (error) throw error;
+    res.json(data);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: 'Error asignando materia' });
   }
 };
 
 exports.obtenerGrupoMaterias = async (req, res) => {
-  const result = await pool.query(`
-    SELECT 
-      gm.*,
-      m.nombre AS materia_nombre,
-      g.nombre AS grupo_nombre,
-      u.nombre AS maestro_nombre,
-      na.nombre AS nivel_academico,
-      ne.nombre AS nivel_educativo
-    FROM grupo_materias gm
-    JOIN materias m ON gm.materia_id = m.id
-    JOIN grupos g ON gm.grupo_id = g.id
-    JOIN usuarios u ON gm.maestro_id = u.id
-    JOIN niveles_academicos na ON g.nivel_academico_id = na.id
-    JOIN niveles_educativos ne ON na.nivel_educativo_id = ne.id
-    ORDER BY gm.id
-  `);
-  res.json(result.rows);
+  try {
+    const { data, error } = await supabase
+      .from('grupo_materias')
+      .select(`
+        *,
+        materias (nombre),
+        grupos (nombre, niveles_academicos (nombre, niveles_educativos (nombre))),
+        usuarios (nombre)
+      `)
+      .order('id');
+
+    if (error) throw error;
+
+    const result = data.map(gm => ({
+      ...gm,
+      materia_nombre: gm.materias?.nombre,
+      grupo_nombre: gm.grupos?.nombre,
+      maestro_nombre: gm.usuarios?.nombre,
+      nivel_academico: gm.grupos?.niveles_academicos?.nombre,
+      nivel_educativo: gm.grupos?.niveles_academicos?.niveles_educativos?.nombre,
+      materias: undefined,
+      grupos: undefined,
+      usuarios: undefined
+    }));
+
+    res.json(result);
+    } catch (error) {
+      console.error('ERROR GRUPOS:', JSON.stringify(error, null, 2));
+      res.status(500).json({ message: 'Error obteniendo grupos', detail: error });
+    }
 };
 
 exports.obtenerMateriasPorGrupo = async (req, res) => {
-  const { grupo_id } = req.params;
-  const result = await pool.query(`
-    SELECT 
-      gm.*,
-      m.nombre AS materia_nombre,
-      u.nombre AS maestro_nombre
-    FROM grupo_materias gm
-    JOIN materias m ON gm.materia_id = m.id
-    JOIN usuarios u ON gm.maestro_id = u.id
-    WHERE gm.grupo_id = $1
-    ORDER BY m.nombre
-  `, [grupo_id]);
-  res.json(result.rows);
+  try {
+    const { grupo_id } = req.params;
+
+    const { data, error } = await supabase
+      .from('grupo_materias')
+      .select(`
+        *,
+        materias (nombre),
+        usuarios (nombre)
+      `)
+      .eq('grupo_id', grupo_id)
+      .order('id');
+
+    if (error) throw error;
+
+    const result = data.map(gm => ({
+      ...gm,
+      materia_nombre: gm.materias?.nombre,
+      maestro_nombre: gm.usuarios?.nombre,
+      materias: undefined,
+      usuarios: undefined
+    }));
+
+    res.json(result);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error obteniendo materias del grupo' });
+  }
 };
 
 exports.eliminarGrupoMateria = async (req, res) => {
-  const { id } = req.params;
-  await pool.query(`DELETE FROM grupo_materias WHERE id=$1`, [id]);
-  res.json({ message: 'Materia eliminada del grupo' });
+  try {
+    const { id } = req.params;
+
+    const { error } = await supabase
+      .from('grupo_materias')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    res.json({ message: 'Materia eliminada del grupo' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error eliminando materia del grupo' });
+  }
 };

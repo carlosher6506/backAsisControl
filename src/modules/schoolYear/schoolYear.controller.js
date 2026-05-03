@@ -1,89 +1,120 @@
-const pool = require('../../config/database');
+const supabase = require('../../config/supabase');
 
-exports.crearCiclo = async (req,res)=>{
+exports.crearCiclo = async (req, res) => {
+  try {
+    const { nombre, fecha_inicio, fecha_fin } = req.body;
 
-    const {nombre,fecha_inicio,fecha_fin} = req.body;
+    const { data, error } = await supabase
+      .from('ciclos_escolares')
+      .insert({ nombre, fecha_inicio, fecha_fin })
+      .select()
+      .single();
 
-    const result = await pool.query(`
-        INSERT INTO ciclos_escolares
-        (nombre,fecha_inicio,fecha_fin)
-        VALUES ($1,$2,$3)
-        RETURNING *
-    `,[nombre,fecha_inicio,fecha_fin]);
-
-    res.json(result.rows[0]);
-
+    if (error) throw error;
+    res.json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error creando ciclo escolar' });
+  }
 };
 
-exports.obtenerCiclos = async (req,res)=>{
+exports.obtenerCiclos = async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('ciclos_escolares')
+      .select('*')
+      .order('id');
 
-    const result = await pool.query(`
-        SELECT * FROM ciclos_escolares
-        ORDER BY id
-    `);
-
-    res.json(result.rows);
+    if (error) throw error;
+    res.json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error obteniendo ciclos escolares' });
+  }
 };
 
+exports.obtenerCiclo = async (req, res) => {
+  try {
+    const { id } = req.params;
 
-exports.obtenerCiclo = async (req,res)=>{
+    const { data, error } = await supabase
+      .from('ciclos_escolares')
+      .select('*')
+      .eq('id', id)
+      .single();
 
-    const {id} = req.params;
+    if (error || !data) {
+      return res.status(404).json({ message: 'Ciclo no encontrado' });
+    }
 
-    const result = await pool.query(`
-        SELECT * FROM ciclos_escolares
-        WHERE id=$1
-    `,[id]);
-
-    res.json(result.rows[0]);
+    res.json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error obteniendo ciclo escolar' });
+  }
 };
 
+exports.eliminarCiclo = async (req, res) => {
+  try {
+    const { id } = req.params;
 
-exports.eliminarCiclo = async (req,res)=>{
+    const { error } = await supabase
+      .from('ciclos_escolares')
+      .delete()
+      .eq('id', id);
 
-    const {id} = req.params;
-
-    await pool.query(`
-        DELETE FROM ciclos_escolares
-        WHERE id=$1
-    `,[id]);
-
-    res.json({message:"Ciclo eliminado"});
+    if (error) throw error;
+    res.json({ message: 'Ciclo eliminado' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error eliminando ciclo escolar' });
+  }
 };
 
-exports.actualizarCiclo = async (req,res)=>{
+exports.actualizarCiclo = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nombre, fecha_inicio, fecha_fin } = req.body;
 
-    const {id} = req.params;
+    const { data, error } = await supabase
+      .from('ciclos_escolares')
+      .update({ nombre, fecha_inicio, fecha_fin })
+      .eq('id', id)
+      .select()
+      .single();
 
-    const {nombre,fecha_inicio,fecha_fin} = req.body;
-
-    const result = await pool.query(`
-        UPDATE ciclos_escolares
-        SET nombre=$1,
-            fecha_inicio=$2,
-            fecha_fin=$3
-        WHERE id=$4
-        RETURNING *
-    `,[nombre,fecha_inicio,fecha_fin,id]);
-
-    res.json(result.rows[0]);
-
+    if (error) throw error;
+    res.json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error actualizando ciclo escolar' });
+  }
 };
-
 
 exports.activarCiclo = async (req, res) => {
-  const { id } = req.params;
+  try {
+    const { id } = req.params;
 
-  // Desactiva todos primero
-  await pool.query(`UPDATE ciclos_escolares SET activo = false`);
+    // Desactiva todos primero
+    const { error: errorDesactivar } = await supabase
+      .from('ciclos_escolares')
+      .update({ activo: false })
+      .neq('id', 0); // Aplica a todos los registros
 
-  // Activa solo el seleccionado
-  const result = await pool.query(`
-    UPDATE ciclos_escolares
-    SET activo = true
-    WHERE id = $1
-    RETURNING *
-  `, [id]);
+    if (errorDesactivar) throw errorDesactivar;
 
-  res.json(result.rows[0]);
+    // Activa solo el seleccionado
+    const { data, error } = await supabase
+      .from('ciclos_escolares')
+      .update({ activo: true })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error activando ciclo escolar' });
+  }
 };

@@ -1,23 +1,31 @@
-const pool = require('../../config/database');
-const path = require('path');
-const fs = require('fs');
+const supabase = require('../../config/supabase');
 
 exports.obtenerPerfil = async (req, res) => {
   try {
     const { id } = req.user;
-    const result = await pool.query(`
-      SELECT p.*, u.nombre AS nombre_usuario, u.email
-      FROM perfiles_maestro p
-      RIGHT JOIN usuarios u ON p.usuario_id = u.id
-      WHERE u.id = $1
-    `, [id]);
 
-    if (result.rows.length === 0) {
+    const { data, error } = await supabase
+      .from('perfiles_maestro')
+      .select(`
+        *,
+        usuarios (nombre, email)
+      `)
+      .eq('usuario_id', id)
+      .maybeSingle();
+
+    if (!data) {
       return res.json({ usuario_id: id, existe: false });
     }
 
-    res.json({ ...result.rows[0], existe: true });
+    res.json({
+      ...data,
+      nombre_usuario: data.usuarios?.nombre,
+      email: data.usuarios?.email,
+      usuarios: undefined,
+      existe: true
+    });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: 'Error obteniendo perfil' });
   }
 };
@@ -31,34 +39,39 @@ exports.guardarPerfil = async (req, res) => {
     } = req.body;
 
     // Verifica si ya existe
-    const existe = await pool.query(
-      `SELECT id FROM perfiles_maestro WHERE usuario_id = $1`, [id]
-    );
+    const { data: existe } = await supabase
+      .from('perfiles_maestro')
+      .select('id')
+      .eq('usuario_id', id)
+      .maybeSingle();
 
-    let result;
-    if (existe.rows.length > 0) {
-      result = await pool.query(`
-        UPDATE perfiles_maestro SET
-          nombre = $1, apellido = $2, telefono = $3,
-          curp = $4, rfc = $5, especialidad = $6,
-          carrera = $7, direccion = $8, codigo_classroom = $9,
-          updated_at = CURRENT_TIMESTAMP
-        WHERE usuario_id = $10
-        RETURNING *
-      `, [nombre, apellido, telefono, curp, rfc,
-          especialidad, carrera, direccion, codigo_classroom, id]);
+    let data, error;
+
+    if (existe) {
+      ({ data, error } = await supabase
+        .from('perfiles_maestro')
+        .update({
+          nombre, apellido, telefono, curp, rfc,
+          especialidad, carrera, direccion, codigo_classroom,
+          updated_at: new Date().toISOString()
+        })
+        .eq('usuario_id', id)
+        .select()
+        .single());
     } else {
-      result = await pool.query(`
-        INSERT INTO perfiles_maestro
-        (usuario_id, nombre, apellido, telefono, curp, rfc,
-         especialidad, carrera, direccion, codigo_classroom)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-        RETURNING *
-      `, [id, nombre, apellido, telefono, curp, rfc,
-          especialidad, carrera, direccion, codigo_classroom]);
+      ({ data, error } = await supabase
+        .from('perfiles_maestro')
+        .insert({
+          usuario_id: id,
+          nombre, apellido, telefono, curp, rfc,
+          especialidad, carrera, direccion, codigo_classroom
+        })
+        .select()
+        .single());
     }
 
-    res.json(result.rows[0]);
+    if (error) throw error;
+    res.json(data);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error guardando perfil' });

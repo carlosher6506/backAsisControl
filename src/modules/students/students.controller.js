@@ -1,197 +1,250 @@
-const pool = require('../../config/database');
+const supabase = require('../../config/supabase');
 
-exports.crearAlumno = async (req,res)=>{
+exports.crearAlumno = async (req, res) => {
+  try {
+    const { grupo_id, nombre, matricula } = req.body;
 
-    const {grupo_id,nombre,matricula} = req.body;
+    const { data, error } = await supabase
+      .from('alumnos')
+      .insert({ grupo_id, nombre, matricula })
+      .select()
+      .single();
 
-    const result = await pool.query(`
-        INSERT INTO alumnos
-        (grupo_id,nombre,matricula)
-        VALUES ($1,$2,$3)
-        RETURNING *
-    `,[grupo_id,nombre,matricula]);
+    if (error) throw error;
 
-    res.json(result.rows[0]);
+    // También registrar en alumno_grupos
+    await supabase
+      .from('alumno_grupos')
+      .insert({ alumno_id: data.id, grupo_id });
 
+    res.json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error creando alumno' });
+  }
 };
 
 exports.obtenerAlumnos = async (req, res) => {
-  const { id: usuario_id, rol } = req.user;
+  try {
+    const { id: usuario_id, rol } = req.user;
 
-  let query;
-  let params;
+    const { data, error } = await supabase.rpc('obtener_alumnos', {
+      p_usuario_id: usuario_id,
+      p_rol: rol
+    });
 
-  if (rol === 'admin') {
-    query = `
-      SELECT 
-        a.id, a.nombre, a.matricula, a.grupo_id,
-        g.nombre AS grupo_nombre,
-        na.nombre AS nivel_academico,
-        ne.nombre AS nivel_educativo,
-        ce.nombre AS ciclo_escolar
-      FROM alumnos a
-      LEFT JOIN grupos g ON a.grupo_id = g.id
-      LEFT JOIN niveles_academicos na ON g.nivel_academico_id = na.id
-      LEFT JOIN niveles_educativos ne ON na.nivel_educativo_id = ne.id
-      LEFT JOIN ciclos_escolares ce ON g.ciclo_escolar_id = ce.id
-      ORDER BY a.id
-    `;
-    params = [];
-  } else {
-    // Maestro solo ve alumnos de sus grupos
-    query = `
-      SELECT 
-        a.id, a.nombre, a.matricula, a.grupo_id,
-        g.nombre AS grupo_nombre,
-        na.nombre AS nivel_academico,
-        ne.nombre AS nivel_educativo,
-        ce.nombre AS ciclo_escolar
-      FROM alumnos a
-      LEFT JOIN grupos g ON a.grupo_id = g.id
-      LEFT JOIN niveles_academicos na ON g.nivel_academico_id = na.id
-      LEFT JOIN niveles_educativos ne ON na.nivel_educativo_id = ne.id
-      LEFT JOIN ciclos_escolares ce ON g.ciclo_escolar_id = ce.id
-      WHERE g.maestro_id = $1
-      ORDER BY a.id
-    `;
-    params = [usuario_id];
+    if (error) throw error;
+    res.json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error obteniendo alumnos' });
   }
-
-  const result = await pool.query(query, params);
-  res.json(result.rows);
 };
 
-exports.obtenerAlumnoPorId = async (req,res)=>{
+exports.obtenerAlumnoPorId = async (req, res) => {
+  try {
+    const { id } = req.params;
 
-    const {id} = req.params;
+    const { data, error } = await supabase
+      .from('alumnos')
+      .select('*')
+      .eq('id', id)
+      .single();
 
-    const result = await pool.query(`
-        SELECT * FROM alumnos
-        WHERE id=$1
-    `,[id]);
+    if (error || !data) {
+      return res.status(404).json({ message: 'Alumno no encontrado' });
+    }
 
-    res.json(result.rows[0]);
+    // Traer grupos asignados via alumno_grupos
+    const { data: grupos } = await supabase
+      .from('alumno_grupos')
+      .select('grupo_id')
+      .eq('alumno_id', id);
+
+    res.json({
+      ...data,
+      grupo_ids: (grupos || []).map(g => g.grupo_id)
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error obteniendo alumno' });
+  }
 };
 
+exports.actualizarAlumno = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nombre, matricula, grupo_id, grupo_ids } = req.body;
 
-exports.actualizarAlumno = async (req,res)=>{
+    // Actualizar datos básicos
+    const camposActualizar = { nombre };
+    if (matricula !== undefined) camposActualizar.matricula = matricula;
+    if (grupo_id !== undefined) camposActualizar.grupo_id = grupo_id;
 
-    const {id} = req.params;
-    const {nombre} = req.body;
+    const { data, error } = await supabase
+      .from('alumnos')
+      .update(camposActualizar)
+      .eq('id', id)
+      .select()
+      .single();
 
-    const result = await pool.query(`
-        UPDATE alumnos
-        SET nombre=$1
-        WHERE id=$2
-        RETURNING *
-    `,[nombre,id]);
+    if (error) throw error;
 
-    res.json(result.rows[0]);
+    // Si se envían grupo_ids, actualizar alumno_grupos
+    if (Array.isArray(grupo_ids) && grupo_ids.length > 0) {
+      // Verificar que todos los grupos sean del mismo nivel académico
+      const { data: grupos } = await supabase
+        .from('grupos')
+        .select('id, nivel_academico_id')
+        .in('id', grupo_ids);
+
+      const niveles = [...new Set((grupos || []).map(g => g.nivel_academico_id))];
+      if (niveles.length > 1) {
+        return res.status(400).json({
+          message: 'Todos los grupos deben ser del mismo nivel académico'
+        });
+      }
+
+      // Eliminar asignaciones anteriores y reinsertar
+      await supabase.from('alumno_grupos').delete().eq('alumno_id', id);
+
+      const inserts = grupo_ids.map(gid => ({ alumno_id: Number(id), grupo_id: gid }));
+      const { error: insertError } = await supabase.from('alumno_grupos').insert(inserts);
+      if (insertError) throw insertError;
+
+      // El grupo_id principal es el primero de la lista
+      if (grupo_ids[0] !== undefined) {
+        await supabase
+          .from('alumnos')
+          .update({ grupo_id: grupo_ids[0] })
+          .eq('id', id);
+      }
+    }
+
+    res.json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error actualizando alumno' });
+  }
 };
 
+exports.eliminarAlumno = async (req, res) => {
+  try {
+    const { id } = req.params;
 
-exports.eliminarAlumno = async (req,res)=>{
+    const { error } = await supabase
+      .from('alumnos')
+      .delete()
+      .eq('id', id);
 
-    const {id} = req.params;
-
-    await pool.query(`
-        DELETE FROM alumnos
-        WHERE id=$1
-    `,[id]);
-
-    res.json({message:"Alumno eliminado"});
+    if (error) throw error;
+    res.json({ message: 'Alumno eliminado' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error eliminando alumno' });
+  }
 };
 
-// Obtener alumnos por grupo
 exports.obtenerAlumnosPorGrupo = async (req, res) => {
-  const { grupo_id } = req.params;
-  const result = await pool.query(`
-    SELECT id, nombre, matricula, grupo_id
-    FROM alumnos
-    WHERE grupo_id = $1
-    ORDER BY nombre
-  `, [grupo_id]);
-  res.json(result.rows);
+  try {
+    const { grupo_id } = req.params;
+
+    // Buscar por alumno_grupos para incluir alumnos de múltiples grupos
+    const { data, error } = await supabase
+      .from('alumno_grupos')
+      .select('alumnos (id, nombre, matricula, grupo_id)')
+      .eq('grupo_id', grupo_id)
+      .order('alumno_id');
+
+    if (error) throw error;
+
+    const alumnos = (data || []).map(r => r.alumnos).filter(Boolean);
+    res.json(alumnos);
+  } catch (error) {
+    console.error(error);
+    // Fallback al método directo
+    const { grupo_id } = req.params;
+    const { data } = await supabase
+      .from('alumnos')
+      .select('id, nombre, matricula, grupo_id')
+      .eq('grupo_id', grupo_id)
+      .order('nombre');
+    res.json(data || []);
+  }
 };
 
+// Obtener grupos de un alumno específico
+exports.obtenerGruposDeAlumno = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { data, error } = await supabase
+      .from('alumno_grupos')
+      .select(`
+        grupo_id,
+        grupos (
+          id, nombre, nivel_academico_id,
+          niveles_academicos (nombre, nivel_educativo_id, niveles_educativos (nombre)),
+          ciclos_escolares (nombre)
+        )
+      `)
+      .eq('alumno_id', id);
+
+    if (error) throw error;
+
+    const grupos = (data || []).map(r => ({
+      ...r.grupos,
+      nivel_academico: r.grupos?.niveles_academicos?.nombre,
+      nivel_educativo: r.grupos?.niveles_academicos?.niveles_educativos?.nombre,
+      ciclo_escolar: r.grupos?.ciclos_escolares?.nombre,
+    }));
+
+    res.json(grupos);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error obteniendo grupos del alumno' });
+  }
+};
 
 exports.consultarPorMatricula = async (req, res) => {
   try {
     const { matricula } = req.params;
 
-    // Busca el alumno
-    const alumnoResult = await pool.query(`
-      SELECT 
-        a.id, a.nombre, a.matricula,
-        g.nombre AS grupo_nombre,
-        na.nombre AS nivel_academico,
-        ne.nombre AS nivel_educativo,
-        ce.nombre AS ciclo_escolar
-      FROM alumnos a
-      LEFT JOIN grupos g ON a.grupo_id = g.id
-      LEFT JOIN niveles_academicos na ON g.nivel_academico_id = na.id
-      LEFT JOIN niveles_educativos ne ON na.nivel_educativo_id = ne.id
-      LEFT JOIN ciclos_escolares ce ON g.ciclo_escolar_id = ce.id
-      WHERE a.matricula = $1
-    `, [matricula]);
+    const { data: alumnoData, error: alumnoError } = await supabase
+      .from('alumnos')
+      .select(`
+        id, nombre, matricula,
+        grupos (
+          nombre,
+          niveles_academicos (nombre, niveles_educativos (nombre)),
+          ciclos_escolares (nombre)
+        )
+      `)
+      .eq('matricula', matricula)
+      .single();
 
-    if (alumnoResult.rows.length === 0) {
+    if (alumnoError || !alumnoData) {
       return res.status(404).json({ message: 'Matrícula no encontrada' });
     }
 
-    const alumno = alumnoResult.rows[0];
+    const alumno = {
+      id: alumnoData.id,
+      nombre: alumnoData.nombre,
+      matricula: alumnoData.matricula,
+      grupo_nombre: alumnoData.grupos?.nombre,
+      nivel_academico: alumnoData.grupos?.niveles_academicos?.nombre,
+      nivel_educativo: alumnoData.grupos?.niveles_academicos?.niveles_educativos?.nombre,
+      ciclo_escolar: alumnoData.grupos?.ciclos_escolares?.nombre
+    };
 
-    // Calificaciones por materia y periodo
-    const calResult = await pool.query(`
-      SELECT
-        m.nombre AS materia_nombre,
-        t.periodo,
-        ce2.tipo_evaluacion,
-        ce2.tipo_periodo,
-        ce2.num_periodos,
-        ne.calificacion_minima_aprobatoria,
-        ne.forzar_minimo,
-        ROUND(AVG(c.calificacion) FILTER (WHERE c.calificacion IS NOT NULL)::numeric, 2)
-          AS promedio_calificaciones,
-        COALESCE(SUM(c.puntos_obtenidos) FILTER (WHERE c.puntos_obtenidos IS NOT NULL), 0)
-          AS total_puntos_obtenidos,
-        COALESCE(SUM(
-          CASE
-            WHEN t.valor_propio IS NOT NULL THEN t.valor_propio
-            WHEN e.valor_total IS NOT NULL THEN
-              ROUND((e.valor_total - COALESCE((
-                SELECT SUM(t3.valor_propio) FROM tareas t3
-                WHERE t3.etiqueta_id = t.etiqueta_id
-                AND t3.grupo_materia_id = t.grupo_materia_id
-                AND t3.periodo = t.periodo
-                AND t3.valor_propio IS NOT NULL
-              ), 0)) / NULLIF((
-                SELECT COUNT(*) FROM tareas t3
-                WHERE t3.etiqueta_id = t.etiqueta_id
-                AND t3.grupo_materia_id = t.grupo_materia_id
-                AND t3.periodo = t.periodo
-                AND t3.valor_propio IS NULL
-              ), 0), 2)
-            ELSE 0
-          END
-        ), 0) AS total_puntos_posibles
-      FROM tareas t
-      JOIN grupo_materias gm ON t.grupo_materia_id = gm.id
-      JOIN materias m ON gm.materia_id = m.id
-      JOIN grupos g ON gm.grupo_id = g.id
-      JOIN niveles_academicos na2 ON g.nivel_academico_id = na2.id
-      JOIN niveles_educativos ne ON na2.nivel_educativo_id = ne.id
-      JOIN configuraciones_evaluacion ce2 ON ce2.grupo_id = g.id
-      LEFT JOIN etiquetas e ON t.etiqueta_id = e.id
-      LEFT JOIN calificaciones c ON t.id = c.tarea_id AND c.alumno_id = $1
-      WHERE gm.grupo_id = (SELECT grupo_id FROM alumnos WHERE id = $1)
-      GROUP BY m.nombre, t.periodo, ce2.tipo_evaluacion, ce2.tipo_periodo,
-               ce2.num_periodos, ne.calificacion_minima_aprobatoria, ne.forzar_minimo
-      ORDER BY m.nombre, t.periodo
-    `, [alumno.id]);
+    const { data: calificaciones, error: calError } = await supabase.rpc(
+      'obtener_calificaciones_por_matricula',
+      { p_alumno_id: alumno.id }
+    );
 
-    res.json({ alumno, calificaciones: calResult.rows });
+    if (calError) throw calError;
 
+    res.json({ alumno, calificaciones });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error consultando calificaciones' });

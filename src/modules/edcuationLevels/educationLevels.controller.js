@@ -1,103 +1,92 @@
-const pool = require('../../config/database');
+const supabase = require('../../config/supabase');
 
-exports.crearNivelEducativo = async (req,res)=>{
-    try{
+exports.crearNivelEducativo = async (req, res) => {
+  try {
+    const { nombre, tipo_estructura, calificacion_minima_aprobatoria, forzar_minimo } = req.body;
 
-        const {
-            nombre,
-            tipo_estructura,
-            calificacion_minima_aprobatoria,
-            forzar_minimo
-        } = req.body;
+    const { data, error } = await supabase
+      .from('niveles_educativos')
+      .insert({ nombre, tipo_estructura, calificacion_minima_aprobatoria, forzar_minimo })
+      .select()
+      .single();
 
-        const result = await pool.query(`
-            INSERT INTO niveles_educativos
-            (nombre,tipo_estructura,calificacion_minima_aprobatoria,forzar_minimo)
-            VALUES ($1,$2,$3,$4)
-            RETURNING *
-        `,[
-            nombre,
-            tipo_estructura,
-            calificacion_minima_aprobatoria,
-            forzar_minimo
-        ]);
-
-        res.json(result.rows[0]);
-
-    }catch(error){
-        console.error(error);
-        res.status(500).json({message:"Error creando nivel educativo"});
-    }
+    if (error) throw error;
+    res.json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error creando nivel educativo' });
+  }
 };
 
+exports.obtenerNiveles = async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('niveles_educativos')
+      .select('*')
+      .order('id');
 
-exports.obtenerNiveles = async (req,res)=>{
-
-    const result = await pool.query(`
-        SELECT * FROM niveles_educativos
-        ORDER BY id
-    `);
-
-    res.json(result.rows);
+    if (error) throw error;
+    res.json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error obteniendo niveles educativos' });
+  }
 };
 
+exports.obtenerNivelPorId = async (req, res) => {
+  try {
+    const { id } = req.params;
 
-exports.obtenerNivelPorId = async (req,res)=>{
+    const { data, error } = await supabase
+      .from('niveles_educativos')
+      .select('*')
+      .eq('id', id)
+      .single();
 
-    const {id} = req.params;
-
-    const result = await pool.query(`
-        SELECT * FROM niveles_educativos
-        WHERE id=$1
-    `,[id]);
-
-    if(result.rows.length === 0){
-        return res.status(404).json({message:"Nivel no encontrado"});
+    if (error || !data) {
+      return res.status(404).json({ message: 'Nivel no encontrado' });
     }
 
-    res.json(result.rows[0]);
+    res.json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error obteniendo nivel educativo' });
+  }
 };
 
+exports.actualizarNivel = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nombre, tipo_estructura, calificacion_minima_aprobatoria, forzar_minimo } = req.body;
 
-exports.actualizarNivel = async (req,res)=>{
+    const { data, error } = await supabase
+      .from('niveles_educativos')
+      .update({ nombre, tipo_estructura, calificacion_minima_aprobatoria, forzar_minimo })
+      .eq('id', id)
+      .select()
+      .single();
 
-    const {id} = req.params;
-
-    const {
-        nombre,
-        tipo_estructura,
-        calificacion_minima_aprobatoria,
-        forzar_minimo
-    } = req.body;
-
-    const result = await pool.query(`
-        UPDATE niveles_educativos
-        SET nombre=$1,
-            tipo_estructura=$2,
-            calificacion_minima_aprobatoria=$3,
-            forzar_minimo=$4
-        WHERE id=$5
-        RETURNING *
-    `,[
-        nombre,
-        tipo_estructura,
-        calificacion_minima_aprobatoria,
-        forzar_minimo,
-        id
-    ]);
-
-    res.json(result.rows[0]);
+    if (error) throw error;
+    res.json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error actualizando nivel educativo' });
+  }
 };
 
+exports.eliminarNivel = async (req, res) => {
+  try {
+    const { id } = req.params;
 
-exports.eliminarNivel = async (req,res)=>{
+    const { error } = await supabase
+      .from('niveles_educativos')
+      .delete()
+      .eq('id', id);
 
-    const {id} = req.params;
-
-    await pool.query(`
-        DELETE FROM niveles_educativos
-        WHERE id=$1
-    `,[id]);
-
-    res.json({message:"Nivel eliminado"});
+    if (error) throw error;
+    res.json({ message: 'Nivel eliminado' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error eliminando nivel educativo' });
+  }
 };
