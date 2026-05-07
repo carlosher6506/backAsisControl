@@ -30,7 +30,9 @@ exports.asignarMateria = async (req, res) => {
 
 exports.obtenerGrupoMaterias = async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const { id: usuario_id, rol } = req.user;
+
+    let query = supabase
       .from('grupo_materias')
       .select(`
         *,
@@ -40,6 +42,12 @@ exports.obtenerGrupoMaterias = async (req, res) => {
       `)
       .order('id');
 
+    // Maestro solo ve sus propias materias
+    if (rol !== 'admin') {
+      query = query.eq('maestro_id', usuario_id);
+    }
+
+    const { data, error } = await query;
     if (error) throw error;
 
     const result = data.map(gm => ({
@@ -55,10 +63,10 @@ exports.obtenerGrupoMaterias = async (req, res) => {
     }));
 
     res.json(result);
-    } catch (error) {
-      console.error('ERROR GRUPOS:', JSON.stringify(error, null, 2));
-      res.status(500).json({ message: 'Error obteniendo grupos', detail: error });
-    }
+  } catch (error) {
+    console.error('ERROR GRUPO MATERIAS:', JSON.stringify(error, null, 2));
+    res.status(500).json({ message: 'Error obteniendo grupo materias', detail: error });
+  }
 };
 
 exports.obtenerMateriasPorGrupo = async (req, res) => {
