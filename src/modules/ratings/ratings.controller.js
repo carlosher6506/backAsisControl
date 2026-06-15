@@ -8,7 +8,6 @@ exports.calificar = async (req, res) => {
       ? Math.round((calificacion / 10) * 100) / 100
       : null;
 
-    // Supabase no tiene ON CONFLICT nativo en el SDK, usamos upsert
     const { data, error } = await supabase
       .from('calificaciones')
       .upsert(
@@ -73,7 +72,7 @@ exports.obtenerCalificacionesPorAlumno = async (req, res) => {
   try {
     const { alumno_id, grupo_materia_id } = req.params;
 
-    // Esta query usa CTEs complejas, se delega a RPC
+    // Esta query usa CTEs, se delega a RPC
     const { data, error } = await supabase.rpc('obtener_calificaciones_alumno', {
       p_alumno_id: parseInt(alumno_id),
       p_grupo_materia_id: parseInt(grupo_materia_id)
@@ -157,7 +156,7 @@ exports.obtenerBoleta = async (req, res) => {
       grupos: undefined
     };
 
-    // Calificaciones agrupadas via RPC (query muy compleja)
+    // Calificaciones agrupadas
     const { data: calificaciones, error: calError } = await supabase.rpc('obtener_boleta_alumno', {
       p_alumno_id: parseInt(alumno_id)
     });

@@ -33,10 +33,6 @@ exports.crearMateria = async (req, res) => {
 exports.obtenerMaterias = async (req, res) => {
   try {
     const { id: maestro_id, rol } = req.user;
-    
-    console.log('=== OBTENER MATERIAS ===');
-    console.log('Usuario ID:', maestro_id);
-    console.log('Rol:', rol);
 
     let query = supabase
       .from('materias')
@@ -49,8 +45,6 @@ exports.obtenerMaterias = async (req, res) => {
 
     const { data, error } = await query;
     
-    console.log('Materias retornadas:', data?.map(m => ({ id: m.id, nombre: m.nombre, maestro_id: m.maestro_id })));
-    
     if (error) throw error;
     res.json(data);
   } catch (error) {
@@ -58,6 +52,7 @@ exports.obtenerMaterias = async (req, res) => {
     res.status(500).json({ message: 'Error obteniendo materias' });
   }
 };
+
 exports.actualizarMateria = async (req, res) => {
   try {
     const { id } = req.params;
