@@ -97,9 +97,10 @@ const enviarEmailVerificacion = async (email, nombre, token) =>{
 };
 
 const enviarEmailReset = async (email, nombre, token) => {
+    const url = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
     try{
-        const url = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
-
+        console.log('Iniciando envío reset para:', email);
+        console.log('URL reset:', url);
         await transporter.sendMail({
             from: `"AsisControl" <${process.env.EMAIL_USER}>`,
             to: email,
@@ -189,8 +190,9 @@ const enviarEmailReset = async (email, nombre, token) => {
                 </div>
             `
         });
+        console.log('Correo reset enviado:', info.messageId);
     }catch(error){
-        console.error('Error enviando reset', enviarEmailReset);
+        console.error('Error enviando reset', error);
         throw error;
     }
     
