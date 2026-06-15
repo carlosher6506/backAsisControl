@@ -97,103 +97,35 @@ const enviarEmailVerificacion = async (email, nombre, token) =>{
 };
 
 const enviarEmailReset = async (email, nombre, token) => {
-    const url = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
     try{
-        console.log('Iniciando envío reset para:', email);
-        console.log('URL reset:', url);
+        const url = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+
         const info = await transporter.sendMail({
             from: `"AsisControl" <${process.env.EMAIL_USER}>`,
             to: email,
             subject: 'Restablecer contraseña - AsisControl',
-            html: `
-                <div style="background:#f4f6f9;padding:40px 20px;font-family:Arial,Helvetica,sans-serif;">
-                <div style="max-width:600px;margin:auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.08);">
-
-                    <div style="background:#1e293b;padding:30px;text-align:center;">
-                    <h1 style="margin:0;color:#ffffff;font-size:28px;">
-                        AsisControl
-                    </h1>
-                    <p style="margin:10px 0 0;color:#cbd5e1;font-size:14px;">
-                        Sistema de Control Escolar
-                    </p>
-                    </div>
-
-                    <div style="padding:40px 35px;">
-
-                    <h2 style="margin-top:0;color:#111827;">
-                        Restablecimiento de contraseña
-                    </h2>
-
-                    <p style="color:#4b5563;line-height:1.7;">
-                        Hola <strong>${nombre}</strong>,
-                    </p>
-
-                    <p style="color:#4b5563;line-height:1.7;">
-                        Hemos recibido una solicitud para restablecer la contraseña de tu cuenta de AsisControl.
-                    </p>
-
-                    <p style="color:#4b5563;line-height:1.7;">
-                        Para crear una nueva contraseña, haz clic en el siguiente botón:
-                    </p>
-
-                    <div style="text-align:center;margin:35px 0;">
-                        <a href="${url}"
-                        target="_blank"
-                        style="
-                            background:#2563eb;
-                            color:#ffffff;
-                            text-decoration:none;
-                            padding:14px 30px;
-                            border-radius:8px;
-                            display:inline-block;
-                            font-weight:bold;
-                            font-size:15px;
-                        ">
+            html:`
+                <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:20px;">
+                    <h2 style="color:#111;">Restablecer contraseña</h2>
+                    <p>Hola <strong>${nombre}</strong>, recibimos una solicitud para restablecer tu contraseña.</p>
+                    <a href="${url}"
+                        style="display:inline-block;background:#111;color:#fff;padding:12px 24px;
+                        border-radius:6px;text-decoration:none;font-weight:bold;margin:16px 0;">
                         Restablecer contraseña
-                        </a>
-                    </div>
-
-                    <div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:15px;margin-top:20px;">
-                        <p style="margin:0 0 10px 0;color:#374151;font-size:14px;">
-                        Si el botón no funciona, copia y pega este enlace en tu navegador:
-                        </p>
-
-                        <a href="${url}"
-                        style="color:#2563eb;word-break:break-all;font-size:13px;">
-                        ${url}
-                        </a>
-                    </div>
-
-                    <div style="margin-top:30px;padding:15px;background:#fff7ed;border-left:4px solid #f59e0b;">
-                        <p style="margin:0;color:#92400e;font-size:14px;">
-                        ⏳ Este enlace expirará en <strong>1 hora</strong>.
-                        </p>
-                    </div>
-
-                    <p style="margin-top:25px;color:#6b7280;font-size:14px;line-height:1.6;">
-                        Si no solicitaste el restablecimiento de tu contraseña, puedes ignorar este correo de forma segura. Tu cuenta permanecerá protegida.
+                    </a>
+                    <p style="color:#666;font-size:13px;">
+                        Este enlace expira en <strong>1 hora</strong>.<br/>
+                        Si no solicitaste esto, ignora este correo.
                     </p>
-
-                    </div>
-
-                    <div style="background:#f9fafb;border-top:1px solid #e5e7eb;padding:20px;text-align:center;">
-                    <p style="margin:0;color:#9ca3af;font-size:12px;">
-                        © 2026 AsisControl · Gohe-Dev
-                    </p>
-
-                    <p style="margin-top:8px;color:#9ca3af;font-size:11px;">
-                        Este es un correo automático. No respondas a este mensaje.
-                    </p>
-                    </div>
-
-                </div>
+                    <hr style="border:none;border-top:1px solid #eee;margin:20px 0;"/>
+                    <p style="color:#999;font-size:12px;">© 2026 AsisControl — Gohe-Dev</p>
                 </div>
             `
         });
-        console.log('Correo reset enviado:', info.messageId);
+        console.log('Correo reset enviado', info);
     }catch(error){
         console.error('Error enviando reset', error);
-        throw error;
+        throw error
     }
     
 };
