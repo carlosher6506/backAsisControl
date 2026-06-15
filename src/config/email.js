@@ -101,7 +101,7 @@ const enviarEmailReset = async (email, nombre, token) => {
     try{
         console.log('Iniciando envío reset para:', email);
         console.log('URL reset:', url);
-        await transporter.sendMail({
+        const info = await transporter.sendMail({
             from: `"AsisControl" <${process.env.EMAIL_USER}>`,
             to: email,
             subject: 'Restablecer contraseña - AsisControl',
