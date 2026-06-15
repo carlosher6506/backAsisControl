@@ -26,7 +26,8 @@
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
-    "nodemailer": "^9.0.0"
+    "nodemailer": "^9.0.0",
+    "resend": "^6.12.4"
   },
   "devDependencies": {
     "@types/nodemailer": "^8.0.1",

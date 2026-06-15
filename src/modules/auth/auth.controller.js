@@ -126,7 +126,13 @@ exports.registro = async (req, res) => {
         }
 
         //Enviar email de verificacion
-        await enviarEmailVerificacion(email, nombre, verificacionToken);
+        enviarEmailVerificacion(
+            email,
+            nombre,
+            verificacionToken
+        ).catch(err => {
+            console.error('Error enviando correo:', err);
+        });
 
         res.status(201).json({
             success: true,
@@ -208,9 +214,17 @@ exports.solicitarReset = async (req, res) => {
                 expires_at: expiresAt.toISOString()
             });
 
-        await enviarEmailReset(email, user.nombre, token);
+        enviarEmailReset(
+            email,
+            user.nombre,
+            token
+        ).catch(err => {
+            console.error('Error enviando reset:', err);
+        });
 
-        res.json({ message: 'Si el correo existe, recibirás un enlace en breve.' });
+        res.json({
+            message: 'Si el correo existe, recibirás un enlace en breve.'
+        });
 
     } catch (error) {
         console.error(error);
@@ -293,8 +307,17 @@ exports.reenviarVerificacion = async (req, res) => {
             })
             .eq('id', user.id);
 
-        await enviarEmailVerificacion(email, user.nombre, verificacionToken);
-        res.json({ message: 'Nuevo enlace de verificación enviado.' });
+        enviarEmailVerificacion(
+            email,
+            user.nombre,
+            verificacionToken
+        ).catch(err => {
+            console.error('Error reenviando correo:', err);
+        });
+
+        res.json({
+            message: 'Nuevo enlace de verificación enviado.'
+        });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Error reenviando verificación' });
