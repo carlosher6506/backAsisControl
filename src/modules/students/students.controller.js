@@ -1,8 +1,42 @@
 const supabase = require('../../config/supabase');
 
+// ─── Genera una matrícula única de solo números ───────────────────────────────
+// Formato: YYYYMMDDXXXXXX  (fecha + 6 dígitos aleatorios)
+// Se reintenta hasta 5 veces si hay colisión
+async function generarMatriculaUnica() {
+  const ahora = new Date();
+  const prefijo =
+    String(ahora.getFullYear()) +
+    String(ahora.getMonth() + 1).padStart(2, '0') +
+    String(ahora.getDate()).padStart(2, '0');
+
+  for (let intento = 0; intento < 5; intento++) {
+    const sufijo = String(Math.floor(Math.random() * 1_000_000)).padStart(6, '0');
+    const matricula = prefijo + sufijo;
+
+    const { data } = await supabase
+      .from('alumnos')
+      .select('id')
+      .eq('matricula', matricula)
+      .maybeSingle();
+
+    if (!data) return matricula; // no existe → es única
+  }
+
+  // Fallback: timestamp en ms + 3 dígitos aleatorios
+  return String(Date.now()) + String(Math.floor(Math.random() * 1000)).padStart(3, '0');
+}
+
+// ─── Crear alumno ─────────────────────────────────────────────────────────────
 exports.crearAlumno = async (req, res) => {
   try {
-    const { grupo_id, nombre, matricula } = req.body;
+    const { grupo_id, nombre } = req.body;
+
+    if (!nombre || !grupo_id) {
+      return res.status(400).json({ message: 'El nombre y el grupo son requeridos' });
+    }
+
+    const matricula = await generarMatriculaUnica();
 
     const { data, error } = await supabase
       .from('alumnos')
@@ -12,7 +46,7 @@ exports.crearAlumno = async (req, res) => {
 
     if (error) throw error;
 
-    // También registrar en alumno_grupos
+    // Registrar en alumno_grupos
     await supabase
       .from('alumno_grupos')
       .insert({ alumno_id: data.id, grupo_id });
@@ -24,6 +58,7 @@ exports.crearAlumno = async (req, res) => {
   }
 };
 
+// ─── Obtener todos los alumnos ────────────────────────────────────────────────
 exports.obtenerAlumnos = async (req, res) => {
   try {
     const { id: usuario_id, rol } = req.user;
@@ -41,6 +76,7 @@ exports.obtenerAlumnos = async (req, res) => {
   }
 };
 
+// ─── Obtener alumno por ID ────────────────────────────────────────────────────
 exports.obtenerAlumnoPorId = async (req, res) => {
   try {
     const { id } = req.params;
@@ -55,7 +91,6 @@ exports.obtenerAlumnoPorId = async (req, res) => {
       return res.status(404).json({ message: 'Alumno no encontrado' });
     }
 
-    // Traer grupos asignados via alumno_grupos
     const { data: grupos } = await supabase
       .from('alumno_grupos')
       .select('grupo_id')
@@ -71,14 +106,14 @@ exports.obtenerAlumnoPorId = async (req, res) => {
   }
 };
 
+// ─── Actualizar alumno ────────────────────────────────────────────────────────
+// La matrícula NO se puede modificar desde aquí
 exports.actualizarAlumno = async (req, res) => {
   try {
     const { id } = req.params;
-    const { nombre, matricula, grupo_id, grupo_ids } = req.body;
+    const { nombre, grupo_id, grupo_ids } = req.body;
 
-    // Actualizar datos básicos
     const camposActualizar = { nombre };
-    if (matricula !== undefined) camposActualizar.matricula = matricula;
     if (grupo_id !== undefined) camposActualizar.grupo_id = grupo_id;
 
     const { data, error } = await supabase
@@ -90,9 +125,7 @@ exports.actualizarAlumno = async (req, res) => {
 
     if (error) throw error;
 
-    // Si se envían grupo_ids, actualizar alumno_grupos
     if (Array.isArray(grupo_ids) && grupo_ids.length > 0) {
-      // Verificar que todos los grupos sean del mismo nivel académico
       const { data: grupos } = await supabase
         .from('grupos')
         .select('id, nivel_academico_id')
@@ -105,19 +138,14 @@ exports.actualizarAlumno = async (req, res) => {
         });
       }
 
-      // Eliminar asignaciones anteriores y reinsertar
       await supabase.from('alumno_grupos').delete().eq('alumno_id', id);
 
       const inserts = grupo_ids.map(gid => ({ alumno_id: Number(id), grupo_id: gid }));
       const { error: insertError } = await supabase.from('alumno_grupos').insert(inserts);
       if (insertError) throw insertError;
 
-      // El grupo_id principal es el primero de la lista
       if (grupo_ids[0] !== undefined) {
-        await supabase
-          .from('alumnos')
-          .update({ grupo_id: grupo_ids[0] })
-          .eq('id', id);
+        await supabase.from('alumnos').update({ grupo_id: grupo_ids[0] }).eq('id', id);
       }
     }
 
@@ -128,6 +156,7 @@ exports.actualizarAlumno = async (req, res) => {
   }
 };
 
+// ─── Eliminar alumno ──────────────────────────────────────────────────────────
 exports.eliminarAlumno = async (req, res) => {
   try {
     const { id } = req.params;
@@ -145,11 +174,11 @@ exports.eliminarAlumno = async (req, res) => {
   }
 };
 
+// ─── Alumnos por grupo ────────────────────────────────────────────────────────
 exports.obtenerAlumnosPorGrupo = async (req, res) => {
   try {
     const { grupo_id } = req.params;
 
-    // Buscar por alumno_grupos para incluir alumnos de múltiples grupos
     const { data, error } = await supabase
       .from('alumno_grupos')
       .select('alumnos (id, nombre, matricula, grupo_id)')
@@ -162,7 +191,6 @@ exports.obtenerAlumnosPorGrupo = async (req, res) => {
     res.json(alumnos);
   } catch (error) {
     console.error(error);
-    // Fallback al método directo
     const { grupo_id } = req.params;
     const { data } = await supabase
       .from('alumnos')
@@ -173,7 +201,7 @@ exports.obtenerAlumnosPorGrupo = async (req, res) => {
   }
 };
 
-// Obtener grupos de un alumno específico
+// ─── Grupos de un alumno ──────────────────────────────────────────────────────
 exports.obtenerGruposDeAlumno = async (req, res) => {
   try {
     const { id } = req.params;
@@ -196,7 +224,7 @@ exports.obtenerGruposDeAlumno = async (req, res) => {
       ...r.grupos,
       nivel_academico: r.grupos?.niveles_academicos?.nombre,
       nivel_educativo: r.grupos?.niveles_academicos?.niveles_educativos?.nombre,
-      ciclo_escolar: r.grupos?.ciclos_escolares?.nombre,
+      ciclo_escolar:   r.grupos?.ciclos_escolares?.nombre,
     }));
 
     res.json(grupos);
@@ -206,6 +234,7 @@ exports.obtenerGruposDeAlumno = async (req, res) => {
   }
 };
 
+// ─── Consulta pública por matrícula ──────────────────────────────────────────
 exports.consultarPorMatricula = async (req, res) => {
   try {
     const { matricula } = req.params;
@@ -228,13 +257,13 @@ exports.consultarPorMatricula = async (req, res) => {
     }
 
     const alumno = {
-      id: alumnoData.id,
-      nombre: alumnoData.nombre,
-      matricula: alumnoData.matricula,
-      grupo_nombre: alumnoData.grupos?.nombre,
+      id:              alumnoData.id,
+      nombre:          alumnoData.nombre,
+      matricula:       alumnoData.matricula,
+      grupo_nombre:    alumnoData.grupos?.nombre,
       nivel_academico: alumnoData.grupos?.niveles_academicos?.nombre,
       nivel_educativo: alumnoData.grupos?.niveles_academicos?.niveles_educativos?.nombre,
-      ciclo_escolar: alumnoData.grupos?.ciclos_escolares?.nombre
+      ciclo_escolar:   alumnoData.grupos?.ciclos_escolares?.nombre
     };
 
     const { data: calificaciones, error: calError } = await supabase.rpc(
