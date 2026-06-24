@@ -8,6 +8,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+app.use('/api/admin', require('./modules/admin/admin.routes'));
 app.use('/api/academicLevels', require('./modules/academicLevels/academicLevels.routes'));
 app.use('/api/auth', require('./modules/auth/auth.routes'));
 app.use('/api/educationLevels', require('./modules/edcuationLevels/educationLevels.routes'));

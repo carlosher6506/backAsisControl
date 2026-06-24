@@ -8,5 +8,7 @@ router.get('/verificar/:token', controller.verificarEmail);
 router.post('/solicitar-reset', controller.solicitarReset);
 router.post('/reset-password', controller.resetPassword);
 router.post('/reenviar-verificacion', controller.reenviarVerificacion);
+router.post('/google', controller.googleLogin);
+router.post('/google-callback', controller.googleCallback);
 
 module.exports = router;

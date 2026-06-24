@@ -3,6 +3,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const {enviarEmailVerificacion, enviarEmailReset} = require('../../config/email');
+require('dotenv').config();
 
 exports.login = async (req, res) => {
     try {
@@ -21,6 +22,7 @@ exports.login = async (req, res) => {
                 password,
                 activo,
                 email_verificado,
+                total_logins,
                 roles!usuarios_rol_id_fkey (nombre)
             `)
             .eq('email', email)
@@ -52,6 +54,15 @@ exports.login = async (req, res) => {
             process.env.JWT_SECRET,
             { expiresIn: '8h' }
         );
+
+        // Registrar actividad de login
+        await supabase
+        .from('usuarios')
+        .update({
+            ultimo_login: new Date().toISOString(),
+            total_logins: (user.total_logins || 0) + 1
+        })
+        .eq('id', user.id);
 
         res.json({
             success: true,
@@ -322,4 +333,202 @@ exports.reenviarVerificacion = async (req, res) => {
         console.error(error);
         res.status(500).json({ message: 'Error reenviando verificación' });
     }
+};
+
+exports.googleLogin = async(req, res)=>{
+    try{
+        const {id_token} = req.body;
+
+        if (!id_token){
+         return res.status(404).json({message: 'Token de Google requerido'})   
+        }
+
+        const googleRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${id_token}`);
+        const payload = await googleRes.json();
+
+        if (!googleRes.ok || payload.aud !== process.env.GOOGLE_CLIENT_ID){
+            res.status(401).json({message: 'Token de Google inválido'});
+        }
+
+        const { email, name: nombre, sub: google_id } = payload;
+
+        // Obtener rol "maestro"
+        const { data: rolData, error: rolError } = await supabase
+            .from('roles')
+            .select('id')
+            .eq('nombre', 'maestro')
+            .single();
+
+        if (rolError || !rolData) {
+            return res.status(500).json({ message: 'Rol no encontrado' });
+        }
+
+        // Buscar usuario existente
+        let { data: user } = await supabase
+            .from('usuarios')
+            .select(`
+                id,
+                nombre,
+                email,
+                activo,
+                total_logins,
+                roles!usuarios_rol_id_fkey (nombre)
+            `)
+            .eq('email', email)
+            .maybeSingle();
+            console.log('USER encontrado:', JSON.stringify(user, null, 2));
+
+        if (!user) {
+            // Crear usuario nuevo — email_verificado: true automáticamente
+            const { data: newUser, error: insertError } = await supabase
+                .from('usuarios')
+                .insert({
+                    nombre,
+                    email,
+                    google_id,
+                    password: null,
+                    rol_id: rolData.id,
+                    activo: true,
+                    email_verificado: true,   // ← sin verificación
+                    verificacion_token: null,
+                    verificacion_expires: null
+                })
+                .select(`
+                    id,
+                    nombre,
+                    email,
+                    activo,
+                    total_logins,
+                    roles!usuarios_rol_id_fkey (nombre)
+                `)
+                .single();
+
+            if (insertError) {
+                console.error(insertError);
+                return res.status(500).json({ message: 'Error creando cuenta con Google' });
+            }
+
+            user = newUser;
+
+        } else if (!user.activo) {
+            return res.status(401).json({ message: 'Usuario inactivo' });
+        }
+
+        // Registrar login
+        await supabase
+            .from('usuarios')
+            .update({
+                ultimo_login: new Date().toISOString(),
+                total_logins: (user.total_logins || 0) + 1,
+                google_id  // actualizar por si ya existía sin google_id
+            })
+            .eq('id', user.id);
+
+        const token = jwt.sign(
+            { id: user.id, rol: user.roles.nombre },
+            process.env.JWT_SECRET,
+            { expiresIn: '8h' }
+        );
+
+        res.json({
+            success: true,
+            token,
+            usuario: {
+                id: user.id,
+                nombre: user.nombre,
+                rol: user.roles.nombre
+            }
+        });
+
+    } catch (error) {
+        console.error('Error en Google login:', error);
+        res.status(500).json({ message: 'Error interno del servidor' });
+    }
+}
+
+exports.googleCallback = async (req, res) => {
+  try {
+    const { code } = req.body;
+
+    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code,
+        client_id: process.env.GOOGLE_CLIENT_ID,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET,
+        redirect_uri: process.env.GOOGLE_REDIRECT_URI,
+        grant_type: 'authorization_code'
+      })
+    });
+
+    const tokens = await tokenRes.json();
+    if (!tokenRes.ok) {
+      return res.status(401).json({ message: 'Error al obtener token de Google' });
+    }
+
+    const userRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: `Bearer ${tokens.access_token}` }
+    });
+    const payload = await userRes.json();
+    const { email, name: nombre, sub: google_id } = payload;
+
+    const { data: rolData } = await supabase
+      .from('roles').select('id').eq('nombre', 'maestro').single();
+
+    let { data: user } = await supabase
+      .from('usuarios')
+      .select(`id, nombre, email, activo, total_logins, roles!usuarios_rol_id_fkey (nombre)`)
+      .eq('email', email)
+      .maybeSingle();
+
+    // ← AQUÍ estaba el problema, faltaba este if
+    if (!user) {
+      const { data: newUser, error: insertError } = await supabase
+        .from('usuarios')
+        .insert({
+          nombre, email, google_id, password: null,
+          rol_id: rolData.id, activo: true, email_verificado: true,
+          verificacion_token: null, verificacion_expires: null
+        })
+        .select(`id, nombre, email, activo, total_logins, roles!usuarios_rol_id_fkey (nombre)`)
+        .single();
+
+      if (insertError) {
+        console.error('INSERT ERROR:', JSON.stringify(insertError, null, 2));
+        return res.status(500).json({ message: 'Error creando cuenta' });
+      }
+
+      user = newUser;
+
+    } else if (!user.activo) {
+      return res.status(401).json({ message: 'Usuario inactivo' });
+    }
+
+    await supabase.from('usuarios').update({
+      ultimo_login: new Date().toISOString(),
+      total_logins: (user.total_logins || 0) + 1,
+      google_id
+    }).eq('id', user.id);
+
+    const token = jwt.sign(
+      { id: user.id, rol: user.roles?.nombre },
+      process.env.JWT_SECRET,
+      { expiresIn: '8h' }
+    );
+
+    res.json({
+      success: true,
+      token,
+      usuario: {
+        id: user.id,
+        nombre: user.nombre,
+        rol: user.roles?.nombre
+      }
+    });
+
+  } catch (error) {
+    console.error('Error en Google callback:', error);
+    res.status(500).json({ message: 'Error interno del servidor' });
+  }
 };

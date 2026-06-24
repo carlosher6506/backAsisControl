@@ -1,6 +1,6 @@
 const supabase = require('../../config/supabase');
 
-// ─── Genera una matrícula única de solo números ───────────────────────────────
+// Genera una matrícula única de solo número
 // Formato: YYYYMMDDXXXXXX  (fecha + 6 dígitos aleatorios)
 // Se reintenta hasta 5 veces si hay colisión
 async function generarMatriculaUnica() {
@@ -27,7 +27,7 @@ async function generarMatriculaUnica() {
   return String(Date.now()) + String(Math.floor(Math.random() * 1000)).padStart(3, '0');
 }
 
-// ─── Crear alumno ─────────────────────────────────────────────────────────────
+// Crear alumno
 exports.crearAlumno = async (req, res) => {
   try {
     const { grupo_id, nombre } = req.body;
@@ -58,7 +58,7 @@ exports.crearAlumno = async (req, res) => {
   }
 };
 
-// ─── Obtener todos los alumnos ────────────────────────────────────────────────
+// Obtener todos los alumnos
 exports.obtenerAlumnos = async (req, res) => {
   try {
     const { id: usuario_id, rol } = req.user;
@@ -76,7 +76,7 @@ exports.obtenerAlumnos = async (req, res) => {
   }
 };
 
-// ─── Obtener alumno por ID ────────────────────────────────────────────────────
+// Obtener alumno por ID
 exports.obtenerAlumnoPorId = async (req, res) => {
   try {
     const { id } = req.params;
@@ -106,7 +106,7 @@ exports.obtenerAlumnoPorId = async (req, res) => {
   }
 };
 
-// ─── Actualizar alumno ────────────────────────────────────────────────────────
+// Actualizar alumno 
 // La matrícula NO se puede modificar desde aquí
 exports.actualizarAlumno = async (req, res) => {
   try {
@@ -156,7 +156,7 @@ exports.actualizarAlumno = async (req, res) => {
   }
 };
 
-// ─── Eliminar alumno ──────────────────────────────────────────────────────────
+// Eliminar alumno
 exports.eliminarAlumno = async (req, res) => {
   try {
     const { id } = req.params;
@@ -174,7 +174,7 @@ exports.eliminarAlumno = async (req, res) => {
   }
 };
 
-// ─── Alumnos por grupo ────────────────────────────────────────────────────────
+// Alumnos por grupo
 exports.obtenerAlumnosPorGrupo = async (req, res) => {
   try {
     const { grupo_id } = req.params;
@@ -201,7 +201,7 @@ exports.obtenerAlumnosPorGrupo = async (req, res) => {
   }
 };
 
-// ─── Grupos de un alumno ──────────────────────────────────────────────────────
+// Grupos de un alumno
 exports.obtenerGruposDeAlumno = async (req, res) => {
   try {
     const { id } = req.params;
@@ -231,51 +231,5 @@ exports.obtenerGruposDeAlumno = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error obteniendo grupos del alumno' });
-  }
-};
-
-// ─── Consulta pública por matrícula ──────────────────────────────────────────
-exports.consultarPorMatricula = async (req, res) => {
-  try {
-    const { matricula } = req.params;
-
-    const { data: alumnoData, error: alumnoError } = await supabase
-      .from('alumnos')
-      .select(`
-        id, nombre, matricula,
-        grupos (
-          nombre,
-          niveles_academicos (nombre, niveles_educativos (nombre)),
-          ciclos_escolares (nombre)
-        )
-      `)
-      .eq('matricula', matricula)
-      .single();
-
-    if (alumnoError || !alumnoData) {
-      return res.status(404).json({ message: 'Matrícula no encontrada' });
-    }
-
-    const alumno = {
-      id:              alumnoData.id,
-      nombre:          alumnoData.nombre,
-      matricula:       alumnoData.matricula,
-      grupo_nombre:    alumnoData.grupos?.nombre,
-      nivel_academico: alumnoData.grupos?.niveles_academicos?.nombre,
-      nivel_educativo: alumnoData.grupos?.niveles_academicos?.niveles_educativos?.nombre,
-      ciclo_escolar:   alumnoData.grupos?.ciclos_escolares?.nombre
-    };
-
-    const { data: calificaciones, error: calError } = await supabase.rpc(
-      'obtener_calificaciones_por_matricula',
-      { p_alumno_id: alumno.id }
-    );
-
-    if (calError) throw calError;
-
-    res.json({ alumno, calificaciones });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error consultando calificaciones' });
   }
 };
