@@ -376,7 +376,6 @@ exports.googleLogin = async(req, res)=>{
             `)
             .eq('email', email)
             .maybeSingle();
-            console.log('USER encontrado:', JSON.stringify(user, null, 2));
 
         if (!user) {
             // Crear usuario nuevo — email_verificado: true automáticamente
@@ -389,7 +388,7 @@ exports.googleLogin = async(req, res)=>{
                     password: null,
                     rol_id: rolData.id,
                     activo: true,
-                    email_verificado: true,   // ← sin verificación
+                    email_verificado: true,  
                     verificacion_token: null,
                     verificacion_expires: null
                 })
@@ -482,7 +481,6 @@ exports.googleCallback = async (req, res) => {
       .eq('email', email)
       .maybeSingle();
 
-    // ← AQUÍ estaba el problema, faltaba este if
     if (!user) {
       const { data: newUser, error: insertError } = await supabase
         .from('usuarios')
