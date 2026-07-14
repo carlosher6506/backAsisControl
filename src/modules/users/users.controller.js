@@ -31,33 +31,28 @@
     }
   };
 
-  exports.obtenerUsuarios = async(req,res)=>{
-    try{
-
-      if(req.user.rol !== 'admin'){
-        return res.status(403).json({
-          message:'Acceso denegado'
-        });
-      }
-
-      const {data,error}= await supabase
+  exports.obtenerUsuarios = async (req, res) => {
+    try {
+      const { data, error } = await supabase
         .from('usuarios')
         .select(`
-          id,
-          nombre,
-          email,
-          roles(nombre)
+          id, nombre, email,
+          roles (nombre)
         `);
 
-      if(error) throw error;
+      if (error) throw error;
 
-      res.json(data);
+      const result = data.map(u => ({
+        id: u.id,
+        nombre: u.nombre,
+        email: u.email,
+        rol: u.roles?.nombre
+      }));
 
-    }catch(error){
+      res.json(result);
+    } catch (error) {
       console.error(error);
-      res.status(500).json({
-        message:'Error obteniendo usuarios'
-      });
+      res.status(500).json({ message: 'Error obteniendo usuarios' });
     }
   };
 
