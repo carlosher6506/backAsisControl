@@ -5,79 +5,122 @@ const crypto = require('crypto');
 const {enviarEmailVerificacion, enviarEmailReset} = require('../../config/email');
 require('dotenv').config();
 
+const intentosFallidos = new Map();
+const MAX_INTENTOS = 6;
+const BLOQUEO_MS = 15 * 60 * 1000; // 15 minutos
+
 exports.login = async (req, res) => {
-    try {
-        const { email, password } = req.body;
+  try {
+    const { email, password } = req.body;
 
-        if (!email || !password) {
-            return res.status(400).json({ message: 'Email y password son requeridos' });
-        }
-
-        const { data: user, error } = await supabase
-            .from('usuarios')
-            .select(`
-                id,
-                nombre,
-                email,
-                password,
-                activo,
-                email_verificado,
-                total_logins,
-                roles!usuarios_rol_id_fkey (nombre)
-            `)
-            .eq('email', email)
-            .eq('activo', true)
-            .single();
-
-        if (error || !user) {
-            return res.status(401).json({ message: 'Usuario no encontrado o inactivo' });
-        }
-
-        // verificar correo
-        if (!user.email_verificado){
-            return res.status(401).json({
-                message: 'Debes verificar tu correo electrónico antes de iniciar sesión',
-                code: 'EMAIL_NOT_VERIFIED'
-            });
-        }
-
-        const passwordValida = await bcrypt.compare(password, user.password);
-        if (!passwordValida) {
-            return res.status(401).json({ message: 'Contraseña incorrecta' });
-        }
-
-        const token = jwt.sign(
-            { 
-                id: user.id, 
-                rol: user.roles.nombre 
-            },
-            process.env.JWT_SECRET,
-            { expiresIn: '8h' }
-        );
-
-        // Registrar actividad de login
-        await supabase
-        .from('usuarios')
-        .update({
-            ultimo_login: new Date().toISOString(),
-            total_logins: (user.total_logins || 0) + 1
-        })
-        .eq('id', user.id);
-
-        res.json({
-            success: true,
-            token,
-            usuario: {
-                id: user.id,
-                nombre: user.nombre,
-                rol: user.roles.nombre
-            }
-        });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Error interno del servidor' });
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Email y password son requeridos' });
     }
+
+    const emailNorm = email.trim().toLowerCase();
+
+    // Verificar bloqueo
+    const registro = intentosFallidos.get(emailNorm);
+    if (registro?.bloqueadoHasta && Date.now() < registro.bloqueadoHasta) {
+      const segundosRestantes = Math.ceil((registro.bloqueadoHasta - Date.now()) / 1000);
+      return res.status(429).json({
+        code: 'AUTH_LOCKED',
+        message: 'Cuenta temporalmente bloqueada por múltiples intentos fallidos.',
+        retryAfterSeconds: segundosRestantes
+      });
+    }
+
+    const { data: user, error } = await supabase
+      .from('usuarios')
+      .select(`
+        id, nombre, email, password, activo,
+        email_verificado, total_logins,
+        roles!usuarios_rol_id_fkey (nombre)
+      `)
+      .eq('email', emailNorm)
+      .eq('activo', true)
+      .single();
+
+    if (error || !user) {
+      // Registrar intento fallido
+      registrarIntentoFallido(emailNorm);
+      return res.status(401).json({ message: 'Usuario no encontrado o inactivo' });
+    }
+
+    if (!user.email_verificado) {
+      return res.status(401).json({
+        message: 'Debes verificar tu correo electrónico antes de iniciar sesión',
+        code: 'EMAIL_NOT_VERIFIED'
+      });
+    }
+
+    const passwordValida = await bcrypt.compare(password, user.password);
+    if (!passwordValida) {
+      const bloqueado = registrarIntentoFallido(emailNorm);
+      if (bloqueado) {
+        return res.status(429).json({
+          code: 'AUTH_LOCKED',
+          message: 'Demasiados intentos fallidos. Cuenta bloqueada temporalmente.',
+          retryAfterSeconds: BLOQUEO_MS / 1000
+        });
+      }
+      return res.status(401).json({ message: 'Contraseña incorrecta' });
+    }
+
+    // Login exitoso — limpiar intentos
+    intentosFallidos.delete(emailNorm);
+
+    const token = jwt.sign(
+      { id: user.id, rol: user.roles.nombre },
+      process.env.JWT_SECRET,
+      { expiresIn: '8h' }
+    );
+
+    await supabase
+      .from('usuarios')
+      .update({
+        ultimo_login: new Date().toISOString(),
+        total_logins: (user.total_logins || 0) + 1
+      })
+      .eq('id', user.id);
+
+    res.json({
+      success: true,
+      token,
+      usuario: {
+        id: user.id,
+        nombre: user.nombre,
+        rol: user.roles.nombre
+      }
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error interno del servidor' });
+  }
 };
+
+function registrarIntentoFallido(email) {
+  const ahora = Date.now();
+  const registro = intentosFallidos.get(email) || { intentos: 0, bloqueadoHasta: null };
+
+  // Si el bloqueo anterior ya expiró, reiniciar
+  if (registro.bloqueadoHasta && ahora >= registro.bloqueadoHasta) {
+    registro.intentos = 0;
+    registro.bloqueadoHasta = null;
+  }
+
+  registro.intentos++;
+
+  if (registro.intentos >= MAX_INTENTOS) {
+    registro.bloqueadoHasta = ahora + BLOQUEO_MS;
+    intentosFallidos.set(email, registro);
+    return true; // bloqueado
+  }
+
+  intentosFallidos.set(email, registro);
+  return false; // no bloqueado aún
+}
 
 exports.registro = async (req, res) => {
     try {
@@ -202,7 +245,6 @@ exports.solicitarReset = async (req, res) => {
             .eq('email', email)
             .maybeSingle();
 
-        // Siempre responder igual por seguridad (no revelar si el email existe)
         if (!user) {
             return res.json({ message: 'Si el correo existe, recibirás un enlace en breve.' });
         }
@@ -495,7 +537,7 @@ exports.googleCallback = async (req, res) => {
       if (insertError) {
         console.error('INSERT ERROR:', JSON.stringify(insertError, null, 2));
         return res.status(500).json({ message: 'Error creando cuenta' });
-      }
+      } 
 
       user = newUser;
 

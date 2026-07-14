@@ -107,7 +107,6 @@ exports.obtenerAlumnoPorId = async (req, res) => {
 };
 
 // Actualizar alumno 
-// La matrícula NO se puede modificar desde aquí
 exports.actualizarAlumno = async (req, res) => {
   try {
     const { id } = req.params;
@@ -233,3 +232,4 @@ exports.obtenerGruposDeAlumno = async (req, res) => {
     res.status(500).json({ message: 'Error obteniendo grupos del alumno' });
   }
 };
+
