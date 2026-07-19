@@ -30,27 +30,22 @@ async function generarMatriculaUnica() {
 // Crear alumno
 exports.crearAlumno = async (req, res) => {
   try {
-    const { grupo_id, nombre } = req.body;
+    const { nombre, nivel_educativo_id } = req.body;
 
-    if (!nombre || !grupo_id) {
-      return res.status(400).json({ message: 'El nombre y el grupo son requeridos' });
+    if (!nombre) {
+      return res.status(400).json({ message: 'El nombre es requerido' });
     }
 
     const matricula = await generarMatriculaUnica();
 
     const { data, error } = await supabase
       .from('alumnos')
-      .insert({ grupo_id, nombre, matricula })
+      .insert({ nombre, matricula, grupo_id: null, nivel_educativo_id })
       .select()
       .single();
+      
 
     if (error) throw error;
-
-    // Registrar en alumno_grupos
-    await supabase
-      .from('alumno_grupos')
-      .insert({ alumno_id: data.id, grupo_id });
-
     res.json(data);
   } catch (error) {
     console.error(error);
@@ -63,19 +58,53 @@ exports.obtenerAlumnos = async (req, res) => {
   try {
     const { id: usuario_id, rol } = req.user;
 
-    const { data, error } = await supabase.rpc('obtener_alumnos', {
+    const { data: alumnos, error } = await supabase.rpc('obtener_alumnos', {
       p_usuario_id: usuario_id,
       p_rol: rol
     });
 
     if (error) throw error;
-    res.json(data);
+
+    const ids = (alumnos || []).map(alumno => alumno.id);
+
+    if (ids.length === 0) {
+      return res.json([]);
+    }
+
+    const { data: nivelesPorAlumno, error: nivelesError } = await supabase
+      .from('alumnos')
+      .select(`
+        id,
+        nivel_educativo_id,
+        niveles_educativos (nombre)
+      `)
+      .in('id', ids);
+
+    if (nivelesError) throw nivelesError;
+
+    const nivelesMap = new Map(
+      (nivelesPorAlumno || []).map(alumno => [alumno.id, alumno])
+    );
+
+    const resultado = alumnos.map(alumno => {
+      const registro = nivelesMap.get(alumno.id);
+
+      return {
+        ...alumno,
+        nivel_educativo_id: registro?.nivel_educativo_id ?? null,
+        nivel_educativo:
+          alumno.nivel_educativo ||
+          registro?.niveles_educativos?.nombre ||
+          null
+      };
+    });
+
+    res.json(resultado);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error obteniendo alumnos' });
   }
 };
-
 // Obtener alumno por ID
 exports.obtenerAlumnoPorId = async (req, res) => {
   try {
@@ -110,10 +139,11 @@ exports.obtenerAlumnoPorId = async (req, res) => {
 exports.actualizarAlumno = async (req, res) => {
   try {
     const { id } = req.params;
-    const { nombre, grupo_id, grupo_ids } = req.body;
+    const { nombre, grupo_id, grupo_ids, nivel_educativo_id } = req.body;
 
     const camposActualizar = { nombre };
-    if (grupo_id !== undefined) camposActualizar.grupo_id = grupo_id;
+    if (grupo_id !== undefined){camposActualizar.grupo_id = grupo_id;}
+    if (nivel_educativo_id !== undefined){camposActualizar.nivel_educativo_id = nivel_educativo_id}
 
     const { data, error } = await supabase
       .from('alumnos')
@@ -233,3 +263,36 @@ exports.obtenerGruposDeAlumno = async (req, res) => {
   }
 };
 
+exports.desasignarDeGrupo = async (req, res) => {
+  try {
+    const { id, grupo_id } = req.params;
+
+    const { error: relacionError } = await supabase
+      .from('alumno_grupos')
+      .delete()
+      .eq('alumno_id', id)
+      .eq('grupo_id', grupo_id);
+
+    if (relacionError) throw relacionError;
+
+    const { data: gruposRestantes, error: gruposError } = await supabase
+      .from('alumno_grupos')
+      .select('grupo_id')
+      .eq('alumno_id', id)
+      .limit(1);
+
+    if (gruposError) throw gruposError;
+
+    const { error: alumnoError } = await supabase
+      .from('alumnos')
+      .update({ grupo_id: gruposRestantes?.[0]?.grupo_id ?? null })
+      .eq('id', id);
+
+    if (alumnoError) throw alumnoError;
+
+    res.json({ message: 'Alumno desasignado correctamente' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error desasignando alumno' });
+  }
+};

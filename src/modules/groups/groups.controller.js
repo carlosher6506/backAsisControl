@@ -108,13 +108,25 @@ exports.eliminarGrupo = async (req, res) => {
   try {
     const { id } = req.params;
 
+    // Desasignar grupo de alumnos sin eliminarlos de la db
+    await supabase
+      .from('alumno_grupos')
+      .delete()
+      .eq('grupo_id', id);
+
+    // Actualizar grupo_id principal si va dirigido a este grupo
+    await supabase
+      .from('alumnos')
+      .update({ grupo_id: null })
+      .eq('grupo_id', id);
+
     const { error } = await supabase
       .from('grupos')
       .delete()
       .eq('id', id);
 
     if (error) throw error;
-    res.json({ message: 'Grupo eliminado' });
+    res.json({ message: 'Grupo eliminado. Los alumnos fueron desasignados.' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error eliminando grupo' });
