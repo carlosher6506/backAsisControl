@@ -21,6 +21,11 @@ exports.obtenerPerfil = async (req, res) => {
       ...data,
       nombre_usuario: data.usuarios?.nombre,
       email: data.usuarios?.email,
+      phone: data.usuarios?.telefono,
+      specialty: data.especialidad,
+      student: data.carrera,
+      class: data.codigo_classroom,
+      adress: data.direccion,
       usuarios: undefined,
       existe: true
     });
@@ -28,6 +33,7 @@ exports.obtenerPerfil = async (req, res) => {
     console.error(error);
     res.status(500).json({ message: 'Error obteniendo perfil' });
   }
+
 };
 
 exports.guardarPerfil = async (req, res) => {
