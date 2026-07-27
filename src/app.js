@@ -5,7 +5,10 @@ require('./utils/createAdmin')();
 
 const app = express();
 
-app.use(cors());
+app.use(cors({
+    origin: [ FRONTEND_URL ],
+    credentials: true
+}));
 app.use(express.json());
 
 app.use('/api/admin', require('./modules/admin/admin.routes'));
