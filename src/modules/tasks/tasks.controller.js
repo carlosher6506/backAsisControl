@@ -39,7 +39,6 @@ const verificarPuntosDisponibles = async (etiqueta_id, grupo_materia_id, valor_p
       mensaje: `Solo hay ${disponible} pts disponibles en este periodo para esta etiqueta (total: ${valorTotal}, asignados: ${totalAsignado})`
     };
   }
-
   return { valido: true };
 };
 
@@ -138,7 +137,6 @@ exports.obtenerTareas = async (req, res) => {
     const { data, error } = await query;
     if (error) throw error;
 
-    // Filtrar por maestro si no es admin
     const filtrado = rol === 'admin'
       ? data
       : data.filter(t => t.grupo_materias?.maestro_id === usuario_id);

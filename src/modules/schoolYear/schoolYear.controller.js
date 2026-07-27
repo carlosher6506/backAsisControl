@@ -13,8 +13,8 @@ exports.crearCiclo = async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error creando ciclo escolar' });
+      console.error(error);
+      res.status(500).json({ message: 'Error creando ciclo escolar' });
   }
 };
 
@@ -28,8 +28,8 @@ exports.obtenerCiclos = async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error obteniendo ciclos escolares' });
+      console.error(error);
+      res.status(500).json({ message: 'Error obteniendo ciclos escolares' });
   }
 };
 
@@ -49,8 +49,8 @@ exports.obtenerCiclo = async (req, res) => {
 
     res.json(data);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error obteniendo ciclo escolar' });
+      console.error(error);
+      res.status(500).json({ message: 'Error obteniendo ciclo escolar' });
   }
 };
 
@@ -66,8 +66,8 @@ exports.eliminarCiclo = async (req, res) => {
     if (error) throw error;
     res.json({ message: 'Ciclo eliminado' });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error eliminando ciclo escolar' });
+      console.error(error);
+      res.status(500).json({ message: 'Error eliminando ciclo escolar' });
   }
 };
 
@@ -86,8 +86,8 @@ exports.actualizarCiclo = async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error actualizando ciclo escolar' });
+      console.error(error);
+      res.status(500).json({ message: 'Error actualizando ciclo escolar' });
   }
 };
 
@@ -95,7 +95,6 @@ exports.activarCiclo = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Desactiva todos primero
     const { error: errorDesactivar } = await supabase
       .from('ciclos_escolares')
       .update({ activo: false })
@@ -103,7 +102,6 @@ exports.activarCiclo = async (req, res) => {
 
     if (errorDesactivar) throw errorDesactivar;
 
-    // Activa solo el seleccionado
     const { data, error } = await supabase
       .from('ciclos_escolares')
       .update({ activo: true })
@@ -114,7 +112,7 @@ exports.activarCiclo = async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error activando ciclo escolar' });
+      console.error(error);
+      res.status(500).json({ message: 'Error activando ciclo escolar' });
   }
 };

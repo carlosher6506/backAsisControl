@@ -30,10 +30,9 @@ exports.obtenerPerfil = async (req, res) => {
       existe: true
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error obteniendo perfil' });
+      console.error(error);
+      res.status(500).json({ message: 'Error obteniendo perfil' });
   }
-
 };
 
 exports.guardarPerfil = async (req, res) => {
@@ -52,7 +51,6 @@ exports.guardarPerfil = async (req, res) => {
       .maybeSingle();
 
     let data, error;
-
     if (existe) {
       ({ data, error } = await supabase
         .from('perfiles_maestro')
@@ -79,7 +77,7 @@ exports.guardarPerfil = async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error guardando perfil' });
+      console.error(error);
+      res.status(500).json({ message: 'Error guardando perfil' });
   }
 };

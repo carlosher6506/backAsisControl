@@ -13,8 +13,8 @@ exports.crearEtiqueta = async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error creando etiqueta' });
+      console.error(error);
+      res.status(500).json({ message: 'Error creando etiqueta' });
   }
 };
 
@@ -39,8 +39,8 @@ exports.obtenerEtiquetas = async (req, res) => {
 
     res.json(result);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error obteniendo etiquetas' });
+      console.error(error);
+      res.status(500).json({ message: 'Error obteniendo etiquetas' });
   }
 };
 
@@ -57,8 +57,8 @@ exports.obtenerEtiquetasPorConfiguracion = async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error obteniendo etiquetas por configuración' });
+      console.error(error);
+      res.status(500).json({ message: 'Error obteniendo etiquetas por configuración' });
   }
 };
 
@@ -77,8 +77,8 @@ exports.actualizarEtiqueta = async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error actualizando etiqueta' });
+      console.error(error);
+      res.status(500).json({ message: 'Error actualizando etiqueta' });
   }
 };
 
@@ -94,7 +94,7 @@ exports.eliminarEtiqueta = async (req, res) => {
     if (error) throw error;
     res.json({ message: 'Etiqueta eliminada' });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error eliminando etiqueta' });
+      console.error(error);
+      res.status(500).json({ message: 'Error eliminando etiqueta' });
   }
 };

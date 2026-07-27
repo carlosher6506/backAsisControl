@@ -4,7 +4,7 @@ exports.configurarEvaluacion = async (req, res) => {
   try {
     const { grupo_id, tipo_evaluacion, num_periodos, tipo_periodo, tipo_calculo } = req.body;
 
-    // Verifica que el grupo no tenga ya configuración
+    // Verifica que el grupo no tenga configuración
     const { data: existe } = await supabase
       .from('configuraciones_evaluacion')
       .select('id')
@@ -23,8 +23,8 @@ exports.configurarEvaluacion = async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error configurando evaluación' });
+      console.error(error);
+      res.status(500).json({ message: 'Error configurando evaluación' });
   }
 };
 
@@ -32,7 +32,7 @@ exports.obtenerEvaluaciones = async (req, res) => {
   try {
     const { id: usuario_id, rol } = req.user;
 
-    // Usamos RPC para la query con JOINs y filtro condicional por rol
+    // Uso de RPC para la query con JOINs y filtro con roles
     const { data, error } = await supabase.rpc('obtener_evaluaciones', {
       p_usuario_id: usuario_id,
       p_rol: rol
@@ -41,8 +41,8 @@ exports.obtenerEvaluaciones = async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error obteniendo evaluaciones' });
+      console.error(error);
+      res.status(500).json({ message: 'Error obteniendo evaluaciones' });
   }
 };
 
@@ -62,8 +62,8 @@ exports.obtenerEvaluacionPorId = async (req, res) => {
 
     res.json(data);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error obteniendo evaluación' });
+      console.error(error);
+      res.status(500).json({ message: 'Error obteniendo evaluación' });
   }
 };
 
@@ -82,8 +82,8 @@ exports.actualizarEvaluacion = async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error actualizando evaluación' });
+      console.error(error);
+      res.status(500).json({ message: 'Error actualizando evaluación' });
   }
 };
 
@@ -99,7 +99,7 @@ exports.eliminarEvaluacion = async (req, res) => {
     if (error) throw error;
     res.json({ message: 'Evaluación eliminada' });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error eliminando evaluación' });
+      console.error(error);
+      res.status(500).json({ message: 'Error eliminando evaluación' });
   }
 };

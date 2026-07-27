@@ -23,8 +23,8 @@ exports.asignarMateria = async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error asignando materia' });
+      console.error(error);
+      res.status(500).json({ message: 'Error asignando materia' });
   }
 };
 
@@ -42,7 +42,6 @@ exports.obtenerGrupoMaterias = async (req, res) => {
       `)
       .order('id');
 
-    // Maestro solo ve sus propias materias
     if (rol !== 'admin') {
       query = query.eq('maestro_id', usuario_id);
     }
@@ -64,8 +63,8 @@ exports.obtenerGrupoMaterias = async (req, res) => {
 
     res.json(result);
   } catch (error) {
-    console.error('ERROR GRUPO MATERIAS:', JSON.stringify(error, null, 2));
-    res.status(500).json({ message: 'Error obteniendo grupo materias', detail: error });
+      console.error('ERROR GRUPO MATERIAS:', JSON.stringify(error, null, 2));
+      res.status(500).json({ message: 'Error obteniendo grupo materias', detail: error });
   }
 };
 
@@ -95,8 +94,8 @@ exports.obtenerMateriasPorGrupo = async (req, res) => {
 
     res.json(result);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error obteniendo materias del grupo' });
+      console.error(error);
+      res.status(500).json({ message: 'Error obteniendo materias del grupo' });
   }
 };
 
@@ -112,7 +111,7 @@ exports.eliminarGrupoMateria = async (req, res) => {
     if (error) throw error;
     res.json({ message: 'Materia eliminada del grupo' });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error eliminando materia del grupo' });
+      console.error(error);
+      res.status(500).json({ message: 'Error eliminando materia del grupo' });
   }
 };

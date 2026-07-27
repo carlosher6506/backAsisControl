@@ -24,8 +24,4 @@ app.use('/api/subjects', require('./modules/subjects/subjects.routes'));
 app.use('/api/groupSubjects', require('./modules/groupSubjects/groupSubjects.routes'));
 app.use('/api/profile', require('./modules/profile/profile.routes'));
 
-app.get('/api/test', (req, res) => {
-  res.json({ message: 'backend is working!' });
-});
-
 module.exports = app;

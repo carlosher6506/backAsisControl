@@ -1,7 +1,6 @@
 const supabase = require('../../config/supabase');
 
-// Genera una matrícula única de solo número
-// Formato: YYYYMMDDXXXXXX  (fecha + 6 dígitos aleatorios)
+// Genera una matricula de solo número
 // Se reintenta hasta 5 veces si hay colisión
 async function generarMatriculaUnica() {
   const ahora = new Date();
@@ -20,14 +19,12 @@ async function generarMatriculaUnica() {
       .eq('matricula', matricula)
       .maybeSingle();
 
-    if (!data) return matricula; // no existe → es única
+    if (!data) return matricula;
   }
 
-  // Fallback: timestamp en ms + 3 dígitos aleatorios
   return String(Date.now()) + String(Math.floor(Math.random() * 1000)).padStart(3, '0');
 }
 
-// Crear alumno
 exports.crearAlumno = async (req, res) => {
   try {
     const { nombre, nivel_educativo_id } = req.body;
@@ -48,12 +45,11 @@ exports.crearAlumno = async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error creando alumno' });
+      console.error(error);
+      res.status(500).json({ message: 'Error creando alumno' });
   }
 };
 
-// Obtener todos los alumnos
 exports.obtenerAlumnos = async (req, res) => {
   try {
     const { id: usuario_id, rol } = req.user;
@@ -101,11 +97,11 @@ exports.obtenerAlumnos = async (req, res) => {
 
     res.json(resultado);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error obteniendo alumnos' });
+      console.error(error);
+      res.status(500).json({ message: 'Error obteniendo alumnos' });
   }
 };
-// Obtener alumno por ID
+
 exports.obtenerAlumnoPorId = async (req, res) => {
   try {
     const { id } = req.params;
@@ -130,12 +126,11 @@ exports.obtenerAlumnoPorId = async (req, res) => {
       grupo_ids: (grupos || []).map(g => g.grupo_id)
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error obteniendo alumno' });
+      console.error(error);
+      res.status(500).json({ message: 'Error obteniendo alumno' });
   }
 };
 
-// Actualizar alumno 
 exports.actualizarAlumno = async (req, res) => {
   try {
     const { id } = req.params;
@@ -180,12 +175,11 @@ exports.actualizarAlumno = async (req, res) => {
 
     res.json(data);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error actualizando alumno' });
+      console.error(error);
+      res.status(500).json({ message: 'Error actualizando alumno' });
   }
 };
 
-// Eliminar alumno
 exports.eliminarAlumno = async (req, res) => {
   try {
     const { id } = req.params;
@@ -198,12 +192,11 @@ exports.eliminarAlumno = async (req, res) => {
     if (error) throw error;
     res.json({ message: 'Alumno eliminado' });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error eliminando alumno' });
+      console.error(error);
+      res.status(500).json({ message: 'Error eliminando alumno' });
   }
 };
 
-// Alumnos por grupo
 exports.obtenerAlumnosPorGrupo = async (req, res) => {
   try {
     const { grupo_id } = req.params;
@@ -219,22 +212,20 @@ exports.obtenerAlumnosPorGrupo = async (req, res) => {
     const alumnos = (data || []).map(r => r.alumnos).filter(Boolean);
     res.json(alumnos);
   } catch (error) {
-    console.error(error);
-    const { grupo_id } = req.params;
-    const { data } = await supabase
-      .from('alumnos')
-      .select('id, nombre, matricula, grupo_id')
-      .eq('grupo_id', grupo_id)
-      .order('nombre');
-    res.json(data || []);
+      console.error(error);
+      const { grupo_id } = req.params;
+      const { data } = await supabase
+        .from('alumnos')
+        .select('id, nombre, matricula, grupo_id')
+        .eq('grupo_id', grupo_id)
+        .order('nombre');
+      res.json(data || []);
   }
 };
 
-// Grupos de un alumno
 exports.obtenerGruposDeAlumno = async (req, res) => {
   try {
     const { id } = req.params;
-
     const { data, error } = await supabase
       .from('alumno_grupos')
       .select(`
@@ -248,7 +239,6 @@ exports.obtenerGruposDeAlumno = async (req, res) => {
       .eq('alumno_id', id);
 
     if (error) throw error;
-
     const grupos = (data || []).map(r => ({
       ...r.grupos,
       nivel_academico: r.grupos?.niveles_academicos?.nombre,

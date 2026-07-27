@@ -133,7 +133,6 @@ const enviarEmailReset = async (email, nombre, token) => {
                 </div>
             `
         });
-        console.log('Correo reset enviado', info);
     }catch(error){
         console.error('Error enviando reset', error);
         throw error

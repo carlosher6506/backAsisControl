@@ -7,7 +7,7 @@ require('dotenv').config();
 
 const intentosFallidos = new Map();
 const MAX_INTENTOS = 6;
-const BLOQUEO_MS = 15 * 60 * 1000; // 15 minutos
+const BLOQUEO_MS = 15 * 60 * 1000;
 
 exports.login = async (req, res) => {
   try {
@@ -66,14 +66,12 @@ exports.login = async (req, res) => {
       }
       return res.status(401).json({ message: 'Contraseña incorrecta' });
     }
-
-    // Login exitoso — limpiar intentos
     intentosFallidos.delete(emailNorm);
 
     const token = jwt.sign(
       { id: user.id, rol: user.roles.nombre },
       process.env.JWT_SECRET,
-      { expiresIn: '8h' }
+      { expiresIn: '2h' }
     );
 
     await supabase
@@ -95,8 +93,8 @@ exports.login = async (req, res) => {
     });
 
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error interno del servidor' });
+        console.error(error);
+        res.status(500).json({ message: 'Error interno del servidor' });
   }
 };
 
@@ -104,22 +102,19 @@ function registrarIntentoFallido(email) {
   const ahora = Date.now();
   const registro = intentosFallidos.get(email) || { intentos: 0, bloqueadoHasta: null };
 
-  // Si el bloqueo anterior ya expiró, reiniciar
   if (registro.bloqueadoHasta && ahora >= registro.bloqueadoHasta) {
     registro.intentos = 0;
     registro.bloqueadoHasta = null;
   }
-
   registro.intentos++;
 
   if (registro.intentos >= MAX_INTENTOS) {
     registro.bloqueadoHasta = ahora + BLOQUEO_MS;
     intentosFallidos.set(email, registro);
-    return true; // bloqueado
+    return true;
   }
-
   intentosFallidos.set(email, registro);
-  return false; // no bloqueado aún
+  return false;
 }
 
 exports.registro = async (req, res) => {
@@ -151,14 +146,13 @@ exports.registro = async (req, res) => {
         if (rolError || !rolData) {
             return res.status(500).json({ message: 'Rol "maestro" no encontrado' });
         }
-
         const passwordHash = await bcrypt.hash(password, 10);
 
-        // Token de verificación de 24h
+        // Token de verificación de 2h
         const verificacionToken = crypto.randomBytes(32).toString('hex');
-        const verificacionExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        const verificacionExpires = new Date(Date.now() + 2 * 60 * 60 * 1000);
 
-        // Crear nuevo usuario
+        // Crear usuario
         const { data: newUser, error: insertError } = await supabase
             .from('usuarios')
             .insert({
@@ -250,7 +244,7 @@ exports.solicitarReset = async (req, res) => {
         }
 
         const token = crypto.randomBytes(32).toString('hex');
-        const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
+        const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
 
         // Eliminar tokens anteriores del usuario
         await supabase
@@ -394,7 +388,7 @@ exports.googleLogin = async(req, res)=>{
 
         const { email, name: nombre, sub: google_id } = payload;
 
-        // Obtener rol "maestro"
+        // Obtener rol para maestro
         const { data: rolData, error: rolError } = await supabase
             .from('roles')
             .select('id')
@@ -405,7 +399,7 @@ exports.googleLogin = async(req, res)=>{
             return res.status(500).json({ message: 'Rol no encontrado' });
         }
 
-        // Buscar usuario existente
+        // Buscar usuarios existentes
         let { data: user } = await supabase
             .from('usuarios')
             .select(`
@@ -420,7 +414,6 @@ exports.googleLogin = async(req, res)=>{
             .maybeSingle();
 
         if (!user) {
-            // Crear usuario nuevo — email_verificado: true automáticamente
             const { data: newUser, error: insertError } = await supabase
                 .from('usuarios')
                 .insert({
@@ -448,27 +441,25 @@ exports.googleLogin = async(req, res)=>{
                 console.error(insertError);
                 return res.status(500).json({ message: 'Error creando cuenta con Google' });
             }
-
             user = newUser;
 
         } else if (!user.activo) {
             return res.status(401).json({ message: 'Usuario inactivo' });
         }
 
-        // Registrar login
         await supabase
             .from('usuarios')
             .update({
                 ultimo_login: new Date().toISOString(),
                 total_logins: (user.total_logins || 0) + 1,
-                google_id  // actualizar por si ya existía sin google_id
+                google_id
             })
             .eq('id', user.id);
 
         const token = jwt.sign(
             { id: user.id, rol: user.roles.nombre },
             process.env.JWT_SECRET,
-            { expiresIn: '8h' }
+            { expiresIn: '2h' }
         );
 
         res.json({
@@ -538,7 +529,6 @@ exports.googleCallback = async (req, res) => {
         console.error('INSERT ERROR:', JSON.stringify(insertError, null, 2));
         return res.status(500).json({ message: 'Error creando cuenta' });
       } 
-
       user = newUser;
 
     } else if (!user.activo) {
@@ -554,7 +544,7 @@ exports.googleCallback = async (req, res) => {
     const token = jwt.sign(
       { id: user.id, rol: user.roles?.nombre },
       process.env.JWT_SECRET,
-      { expiresIn: '8h' }
+      { expiresIn: '2h' }
     );
 
     res.json({
@@ -568,7 +558,7 @@ exports.googleCallback = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en Google callback:', error);
-    res.status(500).json({ message: 'Error interno del servidor' });
+        console.error('Error en Google callback:', error);
+        res.status(500).json({ message: 'Error interno del servidor' });
   }
 };

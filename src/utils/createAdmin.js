@@ -3,7 +3,6 @@ const bcrypt = require('bcrypt');
 
 const crearAdmin = async () => {
   try {
-    // Verificar si ya existe el email directamente
     const { data: existe } = await supabase
       .from('usuarios')
       .select('id')
@@ -14,8 +13,6 @@ const crearAdmin = async () => {
       console.log('Admin already exists.');
       return;
     }
-
-    console.log('Admin not found. Creating initial admin...');
 
     const { data: rolData, error: rolError } = await supabase
       .from('roles')
@@ -41,8 +38,6 @@ const crearAdmin = async () => {
       });
 
     if (error) throw error;
-
-    console.log('Admin created successfully!');
 
   } catch (error) {
     console.error('Error to create admin:', error.message);

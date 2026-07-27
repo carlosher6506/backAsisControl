@@ -13,8 +13,8 @@ exports.crearGrupo = async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error creando grupo' });
+      console.error(error);
+      res.status(500).json({ message: 'Error creando grupo' });
   }
 };
 
@@ -31,13 +31,11 @@ exports.obtenerGrupos = async (req, res) => {
       `)
       .order('id');
 
-    // Maestro solo ve sus propios grupos
     if (rol !== 'admin') {
       query = query.eq('maestro_id', usuario_id);
     }
 
     const { data, error } = await query;
-
     if (error) throw error;
 
     const result = data.map(g => ({
@@ -51,7 +49,7 @@ exports.obtenerGrupos = async (req, res) => {
 
     res.json(result);
   } catch (error) {
-    console.error('ERROR GRUPOS:', JSON.stringify(error, null, 2));
+    console.error('error grupos:', json.stringify(error, null, 2));
     res.status(500).json({ message: 'Error obteniendo grupos', detail: error });
   }
 };
@@ -66,7 +64,6 @@ exports.obtenerGrupoPorId = async (req, res) => {
       .select('*')
       .eq('id', id);
 
-    // Maestro solo puede ver sus propios grupos
     if (rol !== 'admin') {
       query = query.eq('maestro_id', usuario_id);
     }
@@ -79,8 +76,8 @@ exports.obtenerGrupoPorId = async (req, res) => {
 
     res.json(data);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error obteniendo grupo' });
+      console.error(error);
+      res.status(500).json({ message: 'Error obteniendo grupo' });
   }
 };
 
@@ -99,8 +96,8 @@ exports.actualizarGrupo = async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error actualizando grupo' });
+      console.error(error);
+      res.status(500).json({ message: 'Error actualizando grupo' });
   }
 };
 
@@ -108,13 +105,11 @@ exports.eliminarGrupo = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Desasignar grupo de alumnos sin eliminarlos de la db
     await supabase
       .from('alumno_grupos')
       .delete()
       .eq('grupo_id', id);
 
-    // Actualizar grupo_id principal si va dirigido a este grupo
     await supabase
       .from('alumnos')
       .update({ grupo_id: null })
@@ -128,7 +123,7 @@ exports.eliminarGrupo = async (req, res) => {
     if (error) throw error;
     res.json({ message: 'Grupo eliminado. Los alumnos fueron desasignados.' });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error eliminando grupo' });
+      console.error(error);
+      res.status(500).json({ message: 'Error eliminando grupo' });
   }
 };

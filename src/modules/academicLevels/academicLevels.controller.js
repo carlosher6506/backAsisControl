@@ -4,7 +4,7 @@ exports.crearNivelAcademico = async (req, res) => {
   try {
     const { nivel_educativo_id, nombre, orden } = req.body;
 
-    // Verifica si ya existe el mismo nombre en el mismo nivel
+    // Verifica si ya existe un nombre en el mismo nivel
     const { data: existe } = await supabase
       .from('niveles_academicos')
       .select('id')
@@ -22,10 +22,10 @@ exports.crearNivelAcademico = async (req, res) => {
       .single();
 
     if (error) throw error;
-    res.json(data);
+      res.json(data);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error creando nivel académico' });
+      console.error(error);
+      res.status(500).json({ message: 'Error creando nivel académico' });
   }
 };
 
@@ -41,7 +41,6 @@ exports.obtenerNivelesAcademicos = async (req, res) => {
 
     if (error) throw error;
 
-    // Aplanar para que nivel_educativo quede como campo directo
     const result = data.map(n => ({
       ...n,
       nivel_educativo: n.niveles_educativos?.nombre,
@@ -50,7 +49,7 @@ exports.obtenerNivelesAcademicos = async (req, res) => {
 
     res.json(result);
     } catch (error) {
-      console.error('ERROR GRUPOS:', JSON.stringify(error, null, 2));
+      console.error('error grupos:', json.stringify(error, null, 2));
       res.status(500).json({ message: 'Error obteniendo niveles academicos', detail: error });
     }
 };
@@ -71,8 +70,8 @@ exports.obtenerNivelAcademicoPorId = async (req, res) => {
 
     res.json(data);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error obteniendo nivel académico' });
+      console.error(error);
+      res.status(500).json({ message: 'Error obteniendo nivel académico' });
   }
 };
 
@@ -103,8 +102,8 @@ exports.actualizarNivelAcademico = async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error actualizando nivel académico' });
+      console.error(error);
+      res.status(500).json({ message: 'Error actualizando nivel académico' });
   }
 };
 
@@ -120,7 +119,7 @@ exports.eliminarNivelAcademico = async (req, res) => {
     if (error) throw error;
     res.json({ message: 'Nivel académico eliminado' });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error eliminando nivel académico' });
+      console.error(error);
+      res.status(500).json({ message: 'Error eliminando nivel académico' });
   }
 };

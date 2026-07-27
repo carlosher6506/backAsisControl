@@ -13,8 +13,8 @@ exports.crearNivelEducativo = async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error creando nivel educativo' });
+      console.error(error);
+      res.status(500).json({ message: 'Error creando nivel educativo' });
   }
 };
 
@@ -28,8 +28,8 @@ exports.obtenerNiveles = async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error obteniendo niveles educativos' });
+      console.error(error);
+      res.status(500).json({ message: 'Error obteniendo niveles educativos' });
   }
 };
 
@@ -49,8 +49,8 @@ exports.obtenerNivelPorId = async (req, res) => {
 
     res.json(data);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error obteniendo nivel educativo' });
+      console.error(error);
+      res.status(500).json({ message: 'Error obteniendo nivel educativo' });
   }
 };
 
@@ -69,8 +69,8 @@ exports.actualizarNivel = async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error actualizando nivel educativo' });
+      console.error(error);
+      res.status(500).json({ message: 'Error actualizando nivel educativo' });
   }
 };
 
@@ -86,7 +86,7 @@ exports.eliminarNivel = async (req, res) => {
     if (error) throw error;
     res.json({ message: 'Nivel eliminado' });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error eliminando nivel educativo' });
+      console.error(error);
+      res.status(500).json({ message: 'Error eliminando nivel educativo' });
   }
 };

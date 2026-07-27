@@ -5,8 +5,7 @@ exports.calificar = async (req, res) => {
     const { alumno_id, tarea_id, calificacion, puntos_obtenidos } = req.body;
 
     const calificacionConvertida = calificacion !== null && calificacion !== undefined
-      ? Math.round((calificacion / 10) * 100) / 100
-      : null;
+      ? Math.round((calificacion / 10) * 100) / 100 : null;
 
     const { data, error } = await supabase
       .from('calificaciones')
@@ -25,8 +24,8 @@ exports.calificar = async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (error) {
-    console.error('Error calificar:', error.message);
-    res.status(500).json({ message: error.message });
+      console.error('Error calificar:', error.message);
+      res.status(500).json({ message: error.message });
   }
 };
 
@@ -46,7 +45,6 @@ exports.obtenerCalificaciones = async (req, res) => {
       .order('id');
 
     if (error) throw error;
-
     const result = data.map(c => ({
       ...c,
       alumno_nombre: c.alumnos?.nombre,
@@ -63,8 +61,8 @@ exports.obtenerCalificaciones = async (req, res) => {
 
     res.json(result);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error obteniendo calificaciones' });
+      console.error(error);
+      res.status(500).json({ message: 'Error obteniendo calificaciones' });
   }
 };
 
@@ -81,8 +79,8 @@ exports.obtenerCalificacionesPorAlumno = async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error obteniendo calificaciones del alumno' });
+      console.error(error);
+      res.status(500).json({ message: 'Error obteniendo calificaciones del alumno' });
   }
 };
 
@@ -98,8 +96,8 @@ exports.eliminarCalificacion = async (req, res) => {
     if (error) throw error;
     res.json({ message: 'Calificación eliminada' });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error eliminando calificación' });
+      console.error(error);
+      res.status(500).json({ message: 'Error eliminando calificación' });
   }
 };
 
@@ -118,8 +116,8 @@ exports.actualizarCalificacion = async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error actualizando calificación' });
+      console.error(error);
+      res.status(500).json({ message: 'Error actualizando calificación' });
   }
 };
 
@@ -127,7 +125,6 @@ exports.obtenerBoleta = async (req, res) => {
   try {
     const { alumno_id } = req.params;
 
-    // Info del alumno
     const { data: alumnoData, error: alumnoError } = await supabase
       .from('alumnos')
       .select(`
@@ -162,10 +159,9 @@ exports.obtenerBoleta = async (req, res) => {
     });
 
     if (calError) throw calError;
-
     res.json({ alumno, calificaciones });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error generando boleta' });
+      console.error(error);
+      res.status(500).json({ message: 'Error generando boleta' });
   }
 };

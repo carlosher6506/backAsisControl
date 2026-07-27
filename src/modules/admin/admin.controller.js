@@ -1,7 +1,7 @@
 const supabase = require('../../config/supabase');
 
-const DIAS_ACTIVO      = 7;   // <= 7 días  → activo
-const DIAS_POCO_ACTIVO = 30;  // <= 30 días → poco activo
+const DIAS_ACTIVO = 7;   
+const DIAS_POCO_ACTIVO = 30;  
 
 exports.getUsuariosActividad = async (req, res) => {
   try {
@@ -17,61 +17,57 @@ exports.getUsuariosActividad = async (req, res) => {
         total_logins,
         created_at,
         roles!usuarios_rol_id_fkey (nombre)
-      `)
-      .order('ultimo_login', { ascending: false, nullsFirst: false });
+      `).order('ultimo_login', { ascending: false, nullsFirst: false });
 
     if (error) throw error;
 
     const ahora = new Date();
 
     const result = usuarios.map(u => {
-      const ultimoLogin   = u.ultimo_login ? new Date(u.ultimo_login) : null;
-      const diasInactivo  = ultimoLogin
-        ? Math.floor((ahora - ultimoLogin) / (1000 * 60 * 60 * 24))
-        : null;
+      const ultimoLogin = u.ultimo_login ? new Date(u.ultimo_login) : null;
+      const diasInactivo = ultimoLogin ? Math.floor((ahora - ultimoLogin) / (1000 * 60 * 60 * 24)): null;
 
       let estado;
-      if (!ultimoLogin)                        estado = 'nunca';
-      else if (diasInactivo <= DIAS_ACTIVO)    estado = 'activo';
+      if (!ultimoLogin) estado = 'nunca';
+      else if (diasInactivo <= DIAS_ACTIVO) estado = 'activo';
       else if (diasInactivo <= DIAS_POCO_ACTIVO) estado = 'poco_activo';
-      else                                     estado = 'inactivo';
+      else estado = 'inactivo';
 
       return {
-        id:             u.id,
-        nombre:         u.nombre,
-        email:          u.email,
-        rol:            u.roles?.nombre || 'sin rol',
-        activo:         u.activo,
+        id: u.id,
+        nombre: u.nombre,
+        email: u.email,
+        rol: u.roles?.nombre || 'sin rol',
+        activo: u.activo,
         emailVerificado: u.email_verificado,
-        ultimoLogin:    u.ultimo_login,
-        totalLogins:    u.total_logins || 0,
+        ultimoLogin: u.ultimo_login,
+        totalLogins: u.total_logins || 0,
         diasInactivo,
         estado,
-        creadoEn:       u.created_at
+        creadoEn: u.created_at
       };
     });
 
     const resumen = {
-      activos:     result.filter(u => u.estado === 'activo').length,
+      activos: result.filter(u => u.estado === 'activo').length,
       pocoActivos: result.filter(u => u.estado === 'poco_activo').length,
-      inactivos:   result.filter(u => u.estado === 'inactivo').length,
-      nunca:       result.filter(u => u.estado === 'nunca').length,
+      inactivos: result.filter(u => u.estado === 'inactivo').length,
+      nunca: result.filter(u => u.estado === 'nunca').length,
     };
 
     res.json({ usuarios: result, resumen });
 
   } catch (error) {
-    console.error('Error getUsuariosActividad:', error);
-    res.status(500).json({ message: 'Error obteniendo actividad de usuarios' });
+      console.error('Error getUsuariosActividad:', error);
+      res.status(500).json({ message: 'Error obteniendo actividad de usuarios' });
   }
 };
 
 exports.getActividadSemanal = async (req, res) => {
   try {
-    const dias   = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
     const conteo = {};
 
-    // Construir los últimos 7 días como keys YYYY-MM-DD
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
@@ -101,7 +97,7 @@ exports.getActividadSemanal = async (req, res) => {
     res.json({ labels, data: Object.values(conteo) });
 
   } catch (error) {
-    console.error('Error getActividadSemanal:', error);
-    res.status(500).json({ message: 'Error obteniendo actividad semanal' });
+      console.error('Error getActividadSemanal:', error);
+      res.status(500).json({ message: 'Error obteniendo actividad semanal' });
   }
 };
