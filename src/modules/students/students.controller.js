@@ -28,6 +28,7 @@ async function generarMatriculaUnica() {
 exports.crearAlumno = async (req, res) => {
   try {
     const { nombre, nivel_educativo_id } = req.body;
+    const { id: usuario_id } = req.user; // <-- usuario autenticado
 
     if (!nombre) {
       return res.status(400).json({ message: 'El nombre es requerido' });
@@ -37,10 +38,15 @@ exports.crearAlumno = async (req, res) => {
 
     const { data, error } = await supabase
       .from('alumnos')
-      .insert({ nombre, matricula, grupo_id: null, nivel_educativo_id })
+      .insert({
+        nombre,
+        matricula,
+        grupo_id: null,
+        nivel_educativo_id,
+        creado_por: usuario_id   // <-- nuevo
+      })
       .select()
       .single();
-      
 
     if (error) throw error;
     res.json(data);

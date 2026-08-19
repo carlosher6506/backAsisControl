@@ -26,5 +26,6 @@ app.use('/api/etiquetas', require('./modules/labels/labels.routes'));
 app.use('/api/subjects', require('./modules/subjects/subjects.routes'));
 app.use('/api/groupSubjects', require('./modules/groupSubjects/groupSubjects.routes'));
 app.use('/api/profile', require('./modules/profile/profile.routes'));
+app.use('/api/attendance', require('./modules/attendance/attendance.routes'));
 
 module.exports = app;
