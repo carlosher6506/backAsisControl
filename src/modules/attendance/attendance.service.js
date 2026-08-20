@@ -41,6 +41,7 @@ async function obtenerSesionOFallar(sesionId) {
 
 async function verificarPropiedad(maestroIdRecurso, usuarioAutenticado){
     const { id: usuarioId, rol } = usuarioAutenticado;
+
     if (rol !== 'admin' && maestroIdRecurso !== usuarioId) {
         throw new AttendanceError(403, 'No tienes acceso a este recurso');
     }
