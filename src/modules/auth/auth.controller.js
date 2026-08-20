@@ -136,7 +136,6 @@ exports.registro = async (req, res) => {
             return res.status(400).json({ message: 'El correo ya está registrado' });
         }
 
-        // Obtener ID del rol "maestro"
         const { data: rolData, error: rolError } = await supabase
             .from('roles')
             .select('id')
