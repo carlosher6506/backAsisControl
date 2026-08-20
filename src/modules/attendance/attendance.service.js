@@ -47,6 +47,48 @@ async function verificarPropiedad(maestroIdRecurso, usuarioAutenticado){
     }
 }
 
+async function verificarAccesoQrAlumno(alumnoId, usuarioAutenticado) {
+  const { id: usuarioId, rol } = usuarioAutenticado;
+
+  if (rol === 'admin') {
+    return;
+  }
+
+  if (rol !== 'maestro') {
+    throw new AttendanceError(403, 'No tienes permiso para emitir credenciales QR');
+  }
+
+  const { data: gruposAlumno, error: errorGrupos } = await supabase
+    .from('alumno_grupos')
+    .select('grupo_id')
+    .eq('alumno_id', alumnoId);
+
+  if (errorGrupos) {
+    throw errorGrupos;
+  }
+
+  const gruposIds = gruposAlumno?.map(({ grupo_id }) => grupo_id) || [];
+  if (!gruposIds.length) {
+    throw new AttendanceError(403, 'No tienes acceso a este alumno');
+  }
+
+  const { data: asignacion, error: errorAsignacion } = await supabase
+    .from('grupo_materias')
+    .select('id')
+    .eq('maestro_id', usuarioId)
+    .in('grupo_id', gruposIds)
+    .limit(1)
+    .maybeSingle();
+
+  if (errorAsignacion) {
+    throw errorAsignacion;
+  }
+
+  if (!asignacion) {
+    throw new AttendanceError(403, 'No tienes acceso a este alumno');
+  }
+}
+
 function validarEstado(estado){
     if (!ESTADOS_VALIDOS.includes(estado)) {
         throw new AttendanceError(400, `Estado inválido. Valores permitidos: ${ESTADOS_VALIDOS.join(', ')}`);
@@ -84,6 +126,7 @@ module.exports = {
   obtenerGrupoMateriaOFallar,
   obtenerSesionOFallar,
   verificarPropiedad,
+  verificarAccesoQrAlumno,
   validarEstado,
   validarMetodo,
   validarFecha,

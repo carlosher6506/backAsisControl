@@ -1,6 +1,6 @@
 const supabase = require('../../config/supabase');
 const { AttendanceError, obtenerGrupoMateriaOFallar, obtenerSesionOFallar, verificarPropiedad, validarEstado, 
-    validarMetodo, validarFecha, validarEntero, generarTokenQr
+    verificarAccesoQrAlumno, validarMetodo, validarFecha, validarEntero, generarTokenQr
 } = require('./attendance.service');
 
 function manejarError(res, error, mensajeGenerico) {
@@ -197,11 +197,8 @@ exports.obtenerReporte = async (req, res) => {
 
 exports.obtenerQrAlumno = async (req, res) => {
   try {
-    if (req.user.rol !== 'admin') {
-      throw new AttendanceError(403, 'Solo un administrador puede emitir credenciales QR');
-    }
-
     const alumnoId = validarEntero(req.params.alumno_id, 'alumno_id');
+    await verificarAccesoQrAlumno(alumnoId, req.user);
 
     const { data: existente, error: errorBusqueda } = await supabase
       .from('alumno_qr_tokens')
@@ -231,11 +228,8 @@ exports.obtenerQrAlumno = async (req, res) => {
 
 exports.regenerarQrAlumno = async (req, res) => {
   try {
-    if (req.user.rol !== 'admin') {
-      throw new AttendanceError(403, 'Solo un administrador puede regenerar credenciales QR');
-    }
-
     const alumnoId = validarEntero(req.params.alumno_id, 'alumno_id');
+    await verificarAccesoQrAlumno(alumnoId, req.user);
     const token = generarTokenQr();
 
     const { data, error } = await supabase
