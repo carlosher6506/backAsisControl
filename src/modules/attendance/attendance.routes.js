@@ -12,5 +12,6 @@ router.post('/register-qr', auth, controller.registrarQr);
 router.get('/report', auth, controller.obtenerReporte);
 router.get('/qr/:alumno_id', auth, controller.obtenerQrAlumno);
 router.patch('/qr/:alumno_id/regenerate', auth, controller.regenerarQrAlumno);
+router.get('/sessions', auth, controller.obtenerSesiones);
  
 module.exports = router;

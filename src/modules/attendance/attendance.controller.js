@@ -84,7 +84,7 @@ exports.registrarManual = async (req, res) => {
     const sesion = await obtenerSesionOFallar(sesionId);
     verificarPropiedad(sesion.maestro_id, req.user);
 
-    if (sesion.cerrada) {
+    if (sesion.cerrada && req.user.rol !== 'admin') {
       throw new AttendanceError(409, 'Esta sesión ya fue cerrada');
     }
 
@@ -115,7 +115,7 @@ exports.registrarQr = async (req, res) => {
     const sesion = await obtenerSesionOFallar(sesionId);
     verificarPropiedad(sesion.maestro_id, req.user);
 
-    if (sesion.cerrada) {
+    if (sesion.cerrada && req.user.rol !== 'admin') {
       throw new AttendanceError(409, 'Esta sesión ya fue cerrada');
     }
 
@@ -245,5 +245,25 @@ exports.regenerarQrAlumno = async (req, res) => {
     res.json(data);
   } catch (error) {
     manejarError(res, error, 'Error regenerando credencial QR');
+  }
+};
+
+
+exports.obtenerSesiones = async (req, res) => {
+  try {
+    const grupoMateriaId = validarEntero(req.query.grupo_materia_id, 'grupo_materia_id');
+    const grupoMateria = await obtenerGrupoMateriaOFallar(grupoMateriaId);
+    verificarPropiedad(grupoMateria.maestro_id, req.user);
+
+    const { data, error } = await supabase
+      .from('asistencia_sesiones')
+      .select('id, grupo_materia_id, maestro_id, fecha, metodo_default, cerrada')
+      .eq('grupo_materia_id', grupoMateriaId)
+      .order('fecha', { ascending: false });
+
+    if (error) throw error;
+    res.json(data);
+  } catch (error) {
+    manejarError(res, error, 'Error obteniendo historial de asistencia');
   }
 };
